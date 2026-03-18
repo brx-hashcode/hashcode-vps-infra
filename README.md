@@ -1,34 +1,83 @@
 # hashcode-infra
 
-Production infrastructure for the Rabotka platform, managed with Docker Compose and Traefik.
+Shared deployment infrastructure for the brx-hashcode organization, managed with Docker Compose and Traefik. Runs on a single VPS and routes traffic to any project deployed on the same server.
 
 ## Stack
 
-| Service  | Image             | Exposed                         |
-|----------|-------------------|---------------------------------|
-| Traefik  | traefik:v3        | :80, :443 (reverse proxy + TLS) |
-| Postgres | postgres:16       | internal only                   |
-| Redis    | redis:7           | internal only                   |
-| Qdrant   | qdrant/qdrant     | `qdrant.<DOMAIN>` (HTTPS)       |
-| Grafana  | grafana/grafana   | `grafana.<DOMAIN>` (HTTPS)      |
+| Service  | Image           | URL                               |
+|----------|-----------------|-----------------------------------|
+| Traefik  | traefik:v3      | :80 / :443 (reverse proxy + TLS)  |
+| Postgres | postgres:16     | internal only                     |
+| Redis    | redis:7         | internal only                     |
+| Qdrant   | qdrant/qdrant   | `qdrant.hashcode.org`        |
+| Grafana  | grafana/grafana | `grafana.hashcode.org`       |
 
 TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge).
+
+---
+
+## Domain Strategy
+
+This infra repo owns the **`hashcode.org`** domain for shared tooling.
+Each project is deployed under its own domain with environment-based subdomains.
+
+### Example — project `rabotka`
+
+| Environment | Frontend          | Backend               |
+|-------------|-------------------|-----------------------|
+| Production  | `rabotka.co`      | `api.rabotka.co`      |
+| Integration | `int-rabotka.co`  | `int-api.rabotka.co`  |
+| Dev         | `dev-rabotka.co`  | `dev-api.rabotka.co`  |
+
+All domains (infra + project) must have **DNS A records → this VPS's IP**.
+Traefik issues a separate TLS cert per domain automatically.
+
+### How app repos plug in
+
+Each app's `docker-compose.yml` joins the shared networks and declares its route via Traefik labels:
+
+```yaml
+# example: rabotka-backend (prod)
+networks:
+  rabotka-public:
+    external: true      # shared Traefik network
+  rabotka-internal:
+    external: true      # shared DB/Redis network
+
+services:
+  api:
+    image: ghcr.io/brx-hashcode/rabotka-backend:latest
+    networks:
+      - rabotka-public
+      - rabotka-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabotka-api-prod.rule=Host(`api.rabotka.co`)"
+      - "traefik.http.routers.rabotka-api-prod.entrypoints=websecure"
+      - "traefik.http.routers.rabotka-api-prod.tls.certresolver=letsencrypt"
+```
+
+> Router names (e.g. `rabotka-api-prod`) must be **unique** across all containers on the server.
+
+---
 
 ## Prerequisites
 
 - Docker + Docker Compose v2
 - A server with ports 80 and 443 open
-- A domain with DNS A records pointing to the server:
-  - `qdrant.<DOMAIN>`
-  - `grafana.<DOMAIN>`
+- DNS A records for all infra subdomains pointing to the VPS:
+  - `qdrant.hashcode.org`
+  - `grafana.hashcode.org`
+
+---
 
 ## Setup
 
 **1. Clone the repo**
 
 ```bash
-git clone <repo-url>
-cd hashcode-infra
+git clone https://github.com/brx-hashcode/hashcode-vps-infra.git
+cd hashcode-vps-infra
 ```
 
 **2. Run the bootstrap script**
@@ -45,16 +94,12 @@ This will:
 **3. Fill in `.env`**
 
 ```bash
-# Domain & TLS
-DOMAIN=yourdomain.com
-EMAIL=admin@yourdomain.com
+INFRA_DOMAIN=hashcode.org
+EMAIL=admin@hashcode.org
 
-# Postgres
-POSTGRES_DB=rabotka
 POSTGRES_USER=rabotka
 POSTGRES_PASSWORD=<strong-password>
 
-# Redis
 REDIS_PASSWORD=<strong-password>
 ```
 
@@ -64,11 +109,13 @@ REDIS_PASSWORD=<strong-password>
 docker compose up -d
 ```
 
+---
+
 ## Directory Structure
 
 ```
-hashcode-infra/
-├── docker-compose.yml      # Service definitions
+hashcode-vps-infra/
+├── docker-compose.yml      # Infra service definitions
 ├── .env.example            # Environment variable template
 ├── .gitignore
 ├── traefik/
@@ -82,10 +129,16 @@ hashcode-infra/
     └── setup.sh            # One-time server bootstrap
 ```
 
+---
+
 ## Networking
 
-- `rabotka-public` — Traefik and services that need external access (Qdrant, Grafana)
-- `rabotka-internal` — Private network for Postgres, Redis, and internal service communication
+| Network            | Purpose                                                    |
+|--------------------|------------------------------------------------------------|
+| `rabotka-public`   | Traefik + any container that needs an external URL         |
+| `rabotka-internal` | Postgres, Redis — only containers that need DB/cache access|
+
+---
 
 ## Common Commands
 
@@ -112,3 +165,37 @@ docker compose down -v
 docker compose pull
 docker compose up -d
 ```
+
+---
+
+## CI/CD — Automatic Deployment
+
+Pushing to `main` triggers a GitHub Actions workflow that SSHs into the VPS, writes the `.env` from secrets, and redeploys the stack.
+
+### Required GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions** and add:
+
+| Secret              | Description                              |
+|---------------------|------------------------------------------|
+| `VPS_HOST`          | VPS IP address or hostname               |
+| `VPS_USER`          | SSH user (e.g. `ubuntu`, `root`)         |
+| `VPS_SSH_KEY`       | Private SSH key (the full PEM content)   |
+| `VPS_PORT`          | SSH port (usually `22`)                  |
+| `INFRA_DOMAIN`      | `hashcode.org`                           |
+| `EMAIL`             | Let's Encrypt email                      |
+| `POSTGRES_USER`     | Postgres username                        |
+| `POSTGRES_PASSWORD` | Postgres password                        |
+| `REDIS_PASSWORD`    | Redis password                           |
+
+### First-time VPS setup
+
+Before the first deploy, SSH in manually and clone the repo:
+
+```bash
+git clone https://github.com/brx-hashcode/hashcode-vps-infra.git ~/hashcode-infra
+cd ~/hashcode-infra
+./scripts/setup.sh
+```
+
+After that, all subsequent deploys are handled automatically by the workflow.

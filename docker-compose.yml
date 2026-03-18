@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   public:
     name: rabotka-public
@@ -67,7 +65,7 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qdrant.rule=Host(`qdrant.${DOMAIN}`)"
+      - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.qdrant.entrypoints=websecure"
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
 
@@ -82,6 +80,6 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"

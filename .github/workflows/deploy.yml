@@ -1,0 +1,57 @@
+name: Deploy Infra
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+
+            # Pull latest infra code
+            cd ~/hashcode-infra
+            git pull origin main
+
+            # Write .env from secrets
+            cat > .env <<EOF
+            # ── Infra domain ──────────────────────────────────────────────────
+            INFRA_DOMAIN=${{ secrets.INFRA_DOMAIN }}
+
+            # ── TLS ───────────────────────────────────────────────────────────
+            EMAIL=${{ secrets.EMAIL }}
+
+            # ── Postgres ──────────────────────────────────────────────────────
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+
+            # ── Redis ─────────────────────────────────────────────────────────
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            EOF
+
+            # Ensure bootstrap has run (idempotent)
+            mkdir -p data/postgres data/redis data/qdrant data/grafana traefik
+            if [ ! -f traefik/acme.json ]; then
+              touch traefik/acme.json
+              chmod 600 traefik/acme.json
+            fi
+
+            # Deploy
+            docker compose pull
+            docker compose up -d --remove-orphans
