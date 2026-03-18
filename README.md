@@ -4,13 +4,15 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 
 ## Stack
 
-| Service  | Image           | URL                              |
-|----------|-----------------|----------------------------------|
-| Traefik  | traefik:v3      | :80 / :443 (reverse proxy + TLS) |
-| Postgres | postgres:16     | internal only                    |
-| Redis    | redis:7         | internal only                    |
-| Qdrant   | qdrant/qdrant   | `qdrant.hashcode.org`            |
-| Grafana  | grafana/grafana | `grafana.hashcode.org`           |
+| Service    | Image                | URL                              |
+|------------|----------------------|----------------------------------|
+| Traefik    | traefik:v3           | `traefik.hashcode.org` (dashboard) |
+| Postgres   | postgres:16          | internal only                    |
+| Redis      | redis:7              | internal only                    |
+| Qdrant     | qdrant/qdrant        | `qdrant.hashcode.org`            |
+| Grafana    | grafana/grafana      | `grafana.hashcode.org`           |
+| SonarQube  | sonarqube:community  | `sonar.hashcode.org`             |
+| Vault      | hashicorp/vault      | `vault.hashcode.org`             |
 
 TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge).
 
@@ -18,13 +20,11 @@ TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge
 
 ## Compose File Structure
 
-The stack uses three compose files to separate concerns:
-
-| File                        | Purpose                                      |
-|-----------------------------|----------------------------------------------|
-| `docker-compose.yml`        | Base — services, networks, volumes (no TLS)  |
-| `docker-compose.prod.yml`   | Production overlay — adds TLS, HTTPS redirect, Let's Encrypt, Linux socket |
-| `docker-compose.override.yml` | Local override — HTTP only, Docker Desktop (Windows), auto-loaded |
+| File                          | Purpose                                                              |
+|-------------------------------|----------------------------------------------------------------------|
+| `docker-compose.yml`          | Base — services, networks, volumes (no TLS)                          |
+| `docker-compose.prod.yml`     | Production overlay — adds TLS, HTTPS redirect, Let's Encrypt         |
+| `docker-compose.override.yml` | Local override — HTTP only, Docker Desktop (Windows), auto-loaded    |
 
 ---
 
@@ -83,8 +83,11 @@ services:
 - Docker + Docker Compose v2
 - A server with ports 80 and 443 open
 - DNS A records for all infra subdomains pointing to the VPS:
-  - `qdrant.hashcode.org`
+  - `traefik.hashcode.org`
   - `grafana.hashcode.org`
+  - `qdrant.hashcode.org`
+  - `sonar.hashcode.org`
+  - `vault.hashcode.org`
 
 ---
 
@@ -118,11 +121,23 @@ POSTGRES_USER=rabotka
 POSTGRES_PASSWORD=<strong-password>
 
 REDIS_PASSWORD=<strong-password>
+
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=<strong-password>
+
+SONARQUBE_DB_NAME=sonarqube
+
+# Generate with: htpasswd -nb admin yourpassword
+TRAEFIK_DASHBOARD_AUTH=admin:$apr1$...
 ```
 
-> For **VPS + CI/CD** deployments: the workflow will **render `.env` from Vault** on the VPS, so the values you put here are mostly useful for **local/manual runs**.
+**4. Create the SonarQube database (first time only)**
 
-**4. Start the stack**
+```bash
+docker exec -it postgres psql -U $POSTGRES_USER -c "CREATE DATABASE sonarqube;"
+```
+
+**5. Start the stack**
 
 ```bash
 # Production (VPS — Linux)
@@ -138,7 +153,7 @@ docker compose up -d
 ## Directory Structure
 
 ```
-hashcode-vps-infra/
+hashcode-infra/
 ├── docker-compose.yml          # Base service definitions (no TLS)
 ├── docker-compose.prod.yml     # Production overlay (TLS + Let's Encrypt)
 ├── docker-compose.override.yml # Local override — gitignored, auto-loaded
@@ -146,11 +161,15 @@ hashcode-vps-infra/
 ├── .gitignore
 ├── traefik/
 │   └── acme.json               # Let's Encrypt certificate storage (gitignored)
+├── vault/
+│   └── config.hcl              # Vault server configuration
 ├── data/                       # Persistent volume data (gitignored)
 │   ├── postgres/
 │   ├── redis/
 │   ├── qdrant/
-│   └── grafana/
+│   ├── grafana/
+│   ├── sonarqube/
+│   └── vault/
 └── scripts/
     └── setup.sh                # One-time server bootstrap
 ```
@@ -174,14 +193,15 @@ The `docker-compose.override.yml` is auto-loaded by Docker Compose and replaces 
 
 - No TLS or Let's Encrypt
 - Uses `//var/run/docker.sock` (Docker Desktop on Windows)
-- Exposes Traefik dashboard at `http://localhost:8080`
 - Services available at:
 
-| Service | Local URL                  |
-|---------|----------------------------|
-| Grafana | http://grafana.localhost   |
-| Qdrant  | http://qdrant.localhost    |
-| Traefik | http://localhost:8080      |
+| Service    | Local URL                   |
+|------------|-----------------------------|
+| Traefik    | http://localhost:8080        |
+| Grafana    | http://grafana.localhost     |
+| Qdrant     | http://qdrant.localhost      |
+| SonarQube  | http://sonar.localhost       |
+| Vault      | http://vault.localhost       |
 
 > `*.localhost` subdomains resolve to `127.0.0.1` natively — no `/etc/hosts` edits needed.
 
@@ -227,70 +247,31 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**.
 
-It SSHs into the VPS, uses **GitHub Actions OIDC** to authenticate to **Vault**, renders the VPS `.env` from **Vault KV v2**, then redeploys the stack using the production overlay.
+It SSHs into the VPS, writes the `.env` directly from **GitHub Secrets**, then redeploys the stack using the production overlay.
 
 ```
-PR opened/updated → GitHub Actions (OIDC token) → SSH into VPS → git pull → Vault render `.env` → docker compose (prod) up -d
-```
-
-### One-time Vault setup (run on the VPS)
-
-1. Start the Vault container (if not running):
-
-```bash
-docker compose -f docker-compose.yml up -d vault
-```
-
-2. Bootstrap **GitHub JWT auth** + **KV v2** for infra deploys:
-
-```bash
-cd ~/hashcode-infra
-
-VAULT_TOKEN='<admin-token>' \
-GITHUB_REPOSITORY='owner/repo' \
-bash ./scripts/vault-bootstrap-github-jwt-kv.sh
-```
-
-Where:
-- `VAULT_TOKEN` is a token with admin rights (used only during bootstrap).
-- `GITHUB_REPOSITORY` is the exact repo that runs the workflow (format: `owner/repo`).
-- The Vault role created by the bootstrap script is bound to that `owner/repo` via the GitHub JWT `repository` claim.
-- The GitHub Actions workflow requests an OIDC token with audience `vault` (configured in the workflow).
-
-3. Put infra secrets into Vault KV v2.
-
-The workflow expects:
-- Vault path: `secret/infra/prod`
-- Fields: `INFRA_DOMAIN`, `EMAIL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`
-
-Example:
-
-```bash
-vault kv put secret/infra/prod \
-  INFRA_DOMAIN='hashcode.org' \
-  EMAIL='admin@hashcode.org' \
-  POSTGRES_USER='rabotka' \
-  POSTGRES_PASSWORD='...' \
-  REDIS_PASSWORD='...' \
-  GRAFANA_ADMIN_USER='admin' \
-  GRAFANA_ADMIN_PASSWORD='...'
+PR opened/updated → GitHub Actions → SSH into VPS → git pull → write .env → docker compose (prod) up -d
 ```
 
 ### Required GitHub Secrets
 
 Go to **Settings → Secrets and variables → Actions** and add:
 
-| Secret              | Description                            |
-|---------------------|----------------------------------------|
-| `VPS_HOST`          | VPS IP address or hostname             |
-| `VPS_USER`          | SSH user (e.g. `ubuntu`, `root`)       |
-| `VPS_SSH_KEY`       | Private SSH key (full PEM content)     |
-| `VPS_PORT`          | SSH port (usually `22`)                |
-
-Notes:
-- No Vault credentials are stored as GitHub Secrets.
-- The workflow requests a **GitHub OIDC token** and uses it to authenticate to Vault.
-- The `.env` file is never stored in git — it is rendered on the VPS at deploy time from Vault.
+| Secret                   | Description                                          |
+|--------------------------|------------------------------------------------------|
+| `VPS_HOST`               | VPS IP address or hostname                           |
+| `VPS_USER`               | SSH user (e.g. `ubuntu`, `root`)                     |
+| `VPS_SSH_KEY`            | Private SSH key (full PEM content)                   |
+| `VPS_PORT`               | SSH port (usually `22`)                              |
+| `INFRA_DOMAIN`           | Base domain (e.g. `hashcode.org`)                    |
+| `EMAIL`                  | Let's Encrypt admin email                            |
+| `POSTGRES_USER`          | Postgres username                                    |
+| `POSTGRES_PASSWORD`      | Postgres password                                    |
+| `REDIS_PASSWORD`         | Redis password                                       |
+| `GRAFANA_ADMIN_USER`     | Grafana admin username                               |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password                               |
+| `SONARQUBE_DB_NAME`      | SonarQube database name (e.g. `sonarqube`)           |
+| `TRAEFIK_DASHBOARD_AUTH` | Basic auth string (`htpasswd -nb admin yourpassword`)|
 
 ### Branches
 
@@ -307,6 +288,10 @@ Before the first automated deploy, SSH in manually and clone the repo:
 git clone https://github.com/brx-hashcode/hashcode-vps-infra.git ~/hashcode-infra
 cd ~/hashcode-infra
 ./scripts/setup.sh
+
+# Create the SonarQube database
+docker compose -f docker-compose.yml up -d postgres
+docker exec -it postgres psql -U $POSTGRES_USER -c "CREATE DATABASE sonarqube;"
 ```
 
 After that, all subsequent deploys are handled automatically by the workflow.

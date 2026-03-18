@@ -21,6 +21,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--api.dashboard=true"
     ports:
       - "80:80"
       - "443:443"
@@ -28,6 +29,11 @@ services:
       - "//var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   postgres:
     image: postgres:16
@@ -81,6 +87,28 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=rabotka-public"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://postgres:5432/${SONARQUBE_DB_NAME:-sonarqube}
+      - SONAR_JDBC_USERNAME=${POSTGRES_USER}
+      - SONAR_JDBC_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/sonarqube/data:/opt/sonarqube/data
+      - ./data/sonarqube/logs:/opt/sonarqube/logs
+      - ./data/sonarqube/extensions:/opt/sonarqube/extensions
+    networks:
+      - internal
+      - public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
 
   vault:
     image: hashicorp/vault:latest
