@@ -9,6 +9,7 @@ volumes:
   redis_data:
   grafana_data:
   qdrant_data:
+  vault_data:
 
 services:
 
@@ -60,12 +61,17 @@ services:
       - public
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
   grafana:
     image: grafana/grafana
     container_name: grafana
     restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./data/grafana:/var/lib/grafana
     networks:
@@ -73,4 +79,25 @@ services:
       - public
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    restart: always
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+    volumes:
+      - ./data/vault:/vault/data
+      - ./vault/config.hcl:/vault/config/config.hcl
+    command: vault server -config=/vault/config/config.hcl
+    networks:
+      - internal
+      - public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.services.vault.loadbalancer.server.port=8200"

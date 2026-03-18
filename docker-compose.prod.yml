@@ -23,6 +23,7 @@ services:
   qdrant:
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
       - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.qdrant.entrypoints=websecure"
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
@@ -31,6 +32,7 @@ services:
   grafana:
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
       - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"

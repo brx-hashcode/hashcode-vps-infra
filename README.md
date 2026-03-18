@@ -4,15 +4,27 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 
 ## Stack
 
-| Service  | Image           | URL                               |
-|----------|-----------------|-----------------------------------|
-| Traefik  | traefik:v3      | :80 / :443 (reverse proxy + TLS)  |
-| Postgres | postgres:16     | internal only                     |
-| Redis    | redis:7         | internal only                     |
-| Qdrant   | qdrant/qdrant   | `qdrant.hashcode.org`        |
-| Grafana  | grafana/grafana | `grafana.hashcode.org`       |
+| Service  | Image           | URL                              |
+|----------|-----------------|----------------------------------|
+| Traefik  | traefik:v3      | :80 / :443 (reverse proxy + TLS) |
+| Postgres | postgres:16     | internal only                    |
+| Redis    | redis:7         | internal only                    |
+| Qdrant   | qdrant/qdrant   | `qdrant.hashcode.org`            |
+| Grafana  | grafana/grafana | `grafana.hashcode.org`           |
 
 TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge).
+
+---
+
+## Compose File Structure
+
+The stack uses three compose files to separate concerns:
+
+| File                        | Purpose                                      |
+|-----------------------------|----------------------------------------------|
+| `docker-compose.yml`        | Base — services, networks, volumes (no TLS)  |
+| `docker-compose.prod.yml`   | Production overlay — adds TLS, HTTPS redirect, Let's Encrypt, Linux socket |
+| `docker-compose.override.yml` | Local override — HTTP only, Docker Desktop (Windows), auto-loaded |
 
 ---
 
@@ -23,11 +35,11 @@ Each project is deployed under its own domain with environment-based subdomains.
 
 ### Example — project `rabotka`
 
-| Environment | Frontend          | Backend               |
-|-------------|-------------------|-----------------------|
-| Production  | `rabotka.co`      | `api.rabotka.co`      |
-| Integration | `int-rabotka.co`  | `int-api.rabotka.co`  |
-| Dev         | `dev-rabotka.co`  | `dev-api.rabotka.co`  |
+| Environment | Frontend         | Backend              |
+|-------------|------------------|----------------------|
+| Production  | `rabotka.co`     | `api.rabotka.co`     |
+| Integration | `int-rabotka.co` | `int-api.rabotka.co` |
+| Dev         | `dev-rabotka.co` | `dev-api.rabotka.co` |
 
 All domains (infra + project) must have **DNS A records → this VPS's IP**.
 Traefik issues a separate TLS cert per domain automatically.
@@ -52,12 +64,17 @@ services:
       - rabotka-internal
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
       - "traefik.http.routers.rabotka-api-prod.rule=Host(`api.rabotka.co`)"
       - "traefik.http.routers.rabotka-api-prod.entrypoints=websecure"
       - "traefik.http.routers.rabotka-api-prod.tls.certresolver=letsencrypt"
+      - "traefik.http.services.rabotka-api-prod.loadbalancer.server.port=<app-port>"
 ```
 
-> Router names (e.g. `rabotka-api-prod`) must be **unique** across all containers on the server.
+> **Important:**
+> - `traefik.docker.network=rabotka-public` is required when a container is on multiple networks — without it, Traefik may pick the wrong network IP and return 504.
+> - `loadbalancer.server.port` must match the port your app listens on inside the container.
+> - Router names (e.g. `rabotka-api-prod`) must be **unique** across all containers on the server.
 
 ---
 
@@ -76,8 +93,8 @@ services:
 **1. Clone the repo**
 
 ```bash
-git clone https://github.com/brx-hashcode/hashcode-vps-infra.git
-cd hashcode-vps-infra
+git clone https://github.com/brx-hashcode/hashcode-vps-infra.git ~/hashcode-infra
+cd ~/hashcode-infra
 ```
 
 **2. Run the bootstrap script**
@@ -106,7 +123,12 @@ REDIS_PASSWORD=<strong-password>
 **4. Start the stack**
 
 ```bash
+# Production (VPS — Linux)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Local (Docker Desktop — Windows/macOS)
 docker compose up -d
+# docker-compose.override.yml is picked up automatically
 ```
 
 ---
@@ -115,36 +137,66 @@ docker compose up -d
 
 ```
 hashcode-vps-infra/
-├── docker-compose.yml      # Infra service definitions
-├── .env.example            # Environment variable template
+├── docker-compose.yml          # Base service definitions (no TLS)
+├── docker-compose.prod.yml     # Production overlay (TLS + Let's Encrypt)
+├── docker-compose.override.yml # Local override — gitignored, auto-loaded
+├── .env.example                # Environment variable template
 ├── .gitignore
 ├── traefik/
-│   └── acme.json           # Let's Encrypt certificate storage (gitignored)
-├── data/                   # Persistent volume data (gitignored)
+│   └── acme.json               # Let's Encrypt certificate storage (gitignored)
+├── data/                       # Persistent volume data (gitignored)
 │   ├── postgres/
 │   ├── redis/
 │   ├── qdrant/
 │   └── grafana/
 └── scripts/
-    └── setup.sh            # One-time server bootstrap
+    └── setup.sh                # One-time server bootstrap
 ```
 
 ---
 
 ## Networking
 
-| Network            | Purpose                                                    |
-|--------------------|------------------------------------------------------------|
-| `rabotka-public`   | Traefik + any container that needs an external URL         |
-| `rabotka-internal` | Postgres, Redis — only containers that need DB/cache access|
+| Network            | Purpose                                                     |
+|--------------------|-------------------------------------------------------------|
+| `rabotka-public`   | Traefik + any container that needs an external URL          |
+| `rabotka-internal` | Postgres, Redis — only containers that need DB/cache access |
+
+> When a container is on both networks, always set `traefik.docker.network=rabotka-public` in its labels so Traefik routes through the correct interface.
+
+---
+
+## Local Development
+
+The `docker-compose.override.yml` is auto-loaded by Docker Compose and replaces all production settings for local use:
+
+- No TLS or Let's Encrypt
+- Uses `//var/run/docker.sock` (Docker Desktop on Windows)
+- Exposes Traefik dashboard at `http://localhost:8080`
+- Services available at:
+
+| Service | Local URL                  |
+|---------|----------------------------|
+| Grafana | http://grafana.localhost   |
+| Qdrant  | http://qdrant.localhost    |
+| Traefik | http://localhost:8080      |
+
+> `*.localhost` subdomains resolve to `127.0.0.1` natively — no `/etc/hosts` edits needed.
+
+```bash
+docker compose up -d
+```
 
 ---
 
 ## Common Commands
 
 ```bash
-# Start all services
+# Start (local)
 docker compose up -d
+
+# Start (production)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # View logs
 docker compose logs -f
@@ -162,18 +214,19 @@ docker compose down -v
 ## Updating Services
 
 ```bash
-docker compose pull
-docker compose up -d
+# Production
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ---
 
 ## CI/CD — Automatic Deployment
 
-The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**. It SSHs into the VPS, writes `.env` from GitHub secrets, and redeploys the stack.
+The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**. It SSHs into the VPS, writes `.env` from GitHub secrets, and redeploys the stack using the production overlay.
 
 ```
-PR opened/updated → GitHub Actions → SSH into VPS → git pull → write .env → docker compose up -d
+PR opened/updated → GitHub Actions → SSH into VPS → git pull → write .env → docker compose (prod) up -d
 ```
 
 ### Required GitHub Secrets
@@ -196,10 +249,10 @@ Go to **Settings → Secrets and variables → Actions** and add:
 
 ### Branches
 
-| Branch    | Trigger         |
-|-----------|-----------------|
-| `main`    | PR → main       |
-| `develop` | PR → develop    |
+| Branch    | Trigger      |
+|-----------|--------------|
+| `main`    | PR → main    |
+| `develop` | PR → develop |
 
 ### First-time VPS setup
 
