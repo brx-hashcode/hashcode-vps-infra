@@ -17,22 +17,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create dummy .env for validation
+        run: |
+          cat > .env <<EOF
+          INFRA_DOMAIN=hashcode.org
+          EMAIL=ci@hashcode.org
+          POSTGRES_USER=ci
+          POSTGRES_PASSWORD=ci
+          REDIS_PASSWORD=ci
+          GRAFANA_ADMIN_USER=ci
+          GRAFANA_ADMIN_PASSWORD=ci
+          TRAEFIK_DASHBOARD_AUTH=ci
+          EOF
+
       - name: Validate base compose
         run: docker compose -f docker-compose.yml config --quiet
 
       - name: Validate production overlay
-        run: |
-          # Provide dummy env vars so variable substitution doesn't fail
-          env \
-            INFRA_DOMAIN=hashcode.org \
-            EMAIL=ci@hashcode.org \
-            POSTGRES_USER=ci \
-            POSTGRES_PASSWORD=ci \
-            REDIS_PASSWORD=ci \
-            GRAFANA_ADMIN_USER=ci \
-            GRAFANA_ADMIN_PASSWORD=ci \
-            TRAEFIK_DASHBOARD_AUTH=ci \
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
 
   deploy:
     name: Deploy to VPS
