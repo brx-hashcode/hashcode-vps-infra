@@ -60,7 +60,7 @@ jobs:
 
             # Move into the repo (so compose paths work).
             cd ~/hashcode-infra
-            git pull origin main
+            git pull origin develop
 
             # Write .env from GitHub Secrets (passed as environment variables).
             cat > .env <<EOF
