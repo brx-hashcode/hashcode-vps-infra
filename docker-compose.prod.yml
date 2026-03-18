@@ -22,7 +22,7 @@ services:
       - "./traefik/acme.json:/acme.json"
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.traefik.rule=Host(`traefik.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
@@ -30,19 +30,10 @@ services:
       - "traefik.http.routers.traefik.middlewares=traefik-auth"
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
 
-  sonarqube:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
-      - "traefik.http.routers.sonarqube.rule=Host(`sonar.${INFRA_DOMAIN}`)"
-      - "traefik.http.routers.sonarqube.entrypoints=websecure"
-      - "traefik.http.routers.sonarqube.tls.certresolver=letsencrypt"
-      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
-
   qdrant:
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.qdrant.entrypoints=websecure"
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
@@ -51,7 +42,7 @@ services:
   grafana:
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
@@ -60,7 +51,7 @@ services:
   vault:
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.vault.rule=Host(`vault.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.vault.entrypoints=websecure"
       - "traefik.http.routers.vault.tls.certresolver=letsencrypt"

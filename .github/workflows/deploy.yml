@@ -48,7 +48,7 @@ jobs:
             chmod 600 .env
 
             # Ensure bootstrap has run (idempotent)
-            mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault data/sonarqube/data data/sonarqube/logs data/sonarqube/extensions traefik
+            mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault traefik
             if [ ! -f traefik/acme.json ]; then
               touch traefik/acme.json
               chmod 600 traefik/acme.json

@@ -12,7 +12,6 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 | Redis     | redis:7             | internal only                      |
 | Qdrant    | qdrant/qdrant       | `qdrant.hashcode.org`              |
 | Grafana   | grafana/grafana     | `grafana.hashcode.org`             |
-| SonarQube | sonarqube:community | `sonar.hashcode.org`               |
 | Vault     | hashicorp/vault     | `vault.hashcode.org`               |
 
 
@@ -57,20 +56,20 @@ Each app's `docker-compose.yml` joins the shared networks and declares its route
 ```yaml
 # example: rabotka-backend (prod)
 networks:
-  rabotka-public:
+  hashcode-public:
     external: true      # shared Traefik network
-  rabotka-internal:
+  hashcode-internal:
     external: true      # shared DB/Redis network
 
 services:
   api:
     image: ghcr.io/brx-hashcode/rabotka-backend:latest
     networks:
-      - rabotka-public
-      - rabotka-internal
+      - hashcode-public
+      - hashcode-internal
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.rabotka-api-prod.rule=Host(`api.rabotka.co`)"
       - "traefik.http.routers.rabotka-api-prod.entrypoints=websecure"
       - "traefik.http.routers.rabotka-api-prod.tls.certresolver=letsencrypt"
@@ -79,7 +78,7 @@ services:
 
 > **Important:**
 >
-> - `traefik.docker.network=rabotka-public` is required when a container is on multiple networks — without it, Traefik may pick the wrong network IP and return 504.
+> - `traefik.docker.network=hashcode-public` is required when a container is on multiple networks — without it, Traefik may pick the wrong network IP and return 504.
 > - `loadbalancer.server.port` must match the port your app listens on inside the container.
 > - Router names (e.g. `rabotka-api-prod`) must be **unique** across all containers on the server.
 
@@ -133,19 +132,11 @@ REDIS_PASSWORD=<strong-password>
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=<strong-password>
 
-SONARQUBE_DB_NAME=sonarqube
-
 # Generate with: htpasswd -nb admin yourpassword
 TRAEFIK_DASHBOARD_AUTH=admin:$apr1$...
 ```
 
-**4. Create the SonarQube database (first time only)**
-
-```bash
-docker exec -it postgres psql -U $POSTGRES_USER -c "CREATE DATABASE sonarqube;"
-```
-
-**5. Start the stack**
+**4. Start the stack**
 
 ```bash
 # Production (VPS — Linux)
@@ -189,11 +180,11 @@ hashcode-infra/
 
 | Network            | Purpose                                                     |
 | ------------------ | ----------------------------------------------------------- |
-| `rabotka-public`   | Traefik + any container that needs an external URL          |
-| `rabotka-internal` | Postgres, Redis — only containers that need DB/cache access |
+| `hashcode-public`   | Traefik + any container that needs an external URL          |
+| `hashcode-internal` | Postgres, Redis — only containers that need DB/cache access |
 
 
-> When a container is on both networks, always set `traefik.docker.network=rabotka-public` in its labels so Traefik routes through the correct interface.
+> When a container is on both networks, always set `traefik.docker.network=hashcode-public` in its labels so Traefik routes through the correct interface.
 
 ---
 
@@ -211,7 +202,6 @@ The `docker-compose.override.yml` is auto-loaded by Docker Compose and replaces 
 | Traefik   | [http://localhost:8080](http://localhost:8080)       |
 | Grafana   | [http://grafana.localhost](http://grafana.localhost) |
 | Qdrant    | [http://qdrant.localhost](http://qdrant.localhost)   |
-| SonarQube | [http://sonar.localhost](http://sonar.localhost)     |
 | Vault     | [http://vault.localhost](http://vault.localhost)     |
 
 
@@ -283,7 +273,6 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `REDIS_PASSWORD`         | Redis password                                        |
 | `GRAFANA_ADMIN_USER`     | Grafana admin username                                |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana admin password                                |
-| `SONARQUBE_DB_NAME`      | SonarQube database name (e.g. `sonarqube`)            |
 | `TRAEFIK_DASHBOARD_AUTH` | Basic auth string (`htpasswd -nb admin yourpassword`) |
 
 
@@ -304,10 +293,6 @@ Before the first automated deploy, SSH in manually and clone the repo:
 git clone https://github.com/brx-hashcode/hashcode-vps-infra.git ~/hashcode-infra
 cd ~/hashcode-infra
 ./scripts/setup.sh
-
-# Create the SonarQube database
-docker compose -f docker-compose.yml up -d postgres
-docker exec -it postgres psql -U $POSTGRES_USER -c "CREATE DATABASE sonarqube;"
 ```
 
 After that, all subsequent deploys are handled automatically by the workflow.

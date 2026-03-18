@@ -1,8 +1,8 @@
 networks:
   public:
-    name: rabotka-public
+    name: hashcode-public
   internal:
-    name: rabotka-internal
+    name: hashcode-internal
 
 volumes:
   postgres_data:
@@ -31,7 +31,7 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
@@ -67,7 +67,7 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
   grafana:
@@ -85,30 +85,8 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-
-  sonarqube:
-    image: sonarqube:community
-    container_name: sonarqube
-    restart: always
-    depends_on:
-      - postgres
-    environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://postgres:5432/${SONARQUBE_DB_NAME:-sonarqube}
-      - SONAR_JDBC_USERNAME=${SONARQUBE_DB_USER}
-      - SONAR_JDBC_PASSWORD=${SONARQUBE_DB_PASSWORD}
-    volumes:
-      - ./data/sonarqube/data:/opt/sonarqube/data
-      - ./data/sonarqube/logs:/opt/sonarqube/logs
-      - ./data/sonarqube/extensions:/opt/sonarqube/extensions
-    networks:
-      - internal
-      - public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
-      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
 
   vault:
     image: hashicorp/vault:latest
@@ -127,5 +105,5 @@ services:
       - public
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=rabotka-public"
+      - "traefik.docker.network=hashcode-public"
       - "traefik.http.services.vault.loadbalancer.server.port=8200"
