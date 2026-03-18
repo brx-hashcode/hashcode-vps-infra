@@ -37,3 +37,12 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  vault:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.routers.vault.rule=Host(`vault.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.vault.entrypoints=websecure"
+      - "traefik.http.routers.vault.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vault.loadbalancer.server.port=8200"

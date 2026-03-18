@@ -43,15 +43,19 @@ jobs:
 
             # ── Redis ─────────────────────────────────────────────────────────
             REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+
+            # ── Grafana ───────────────────────────────────────────────────────
+            GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}
+            GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
             EOF
 
             # Ensure bootstrap has run (idempotent)
-            mkdir -p data/postgres data/redis data/qdrant data/grafana traefik
+            mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault traefik
             if [ ! -f traefik/acme.json ]; then
               touch traefik/acme.json
               chmod 600 traefik/acme.json
             fi
 
-            # Deploy
-            docker compose pull
-            docker compose up -d --remove-orphans
+            # Deploy with production overlay
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans

@@ -11,11 +11,13 @@ if [ ! -f .env ]; then
 fi
 
 echo "==> Creating data directories..."
-mkdir -p data/postgres data/redis data/qdrant data/grafana
+mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault
 
 echo "==> Creating traefik/acme.json..."
 mkdir -p traefik
 touch traefik/acme.json
 chmod 600 traefik/acme.json
 
-echo "==> Done. Start the stack with: docker compose up -d"
+echo "==> Done. Start the stack with:"
+echo "    Local:  docker compose up -d"
+echo "    Prod:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
