@@ -120,6 +120,8 @@ POSTGRES_PASSWORD=<strong-password>
 REDIS_PASSWORD=<strong-password>
 ```
 
+> For **VPS + CI/CD** deployments: the workflow will **render `.env` from Vault** on the VPS, so the values you put here are mostly useful for **local/manual runs**.
+
 **4. Start the stack**
 
 ```bash
@@ -223,10 +225,55 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ## CI/CD — Automatic Deployment
 
-The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**. It SSHs into the VPS, writes `.env` from GitHub secrets, and redeploys the stack using the production overlay.
+The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**.
+
+It SSHs into the VPS, uses **GitHub Actions OIDC** to authenticate to **Vault**, renders the VPS `.env` from **Vault KV v2**, then redeploys the stack using the production overlay.
 
 ```
-PR opened/updated → GitHub Actions → SSH into VPS → git pull → write .env → docker compose (prod) up -d
+PR opened/updated → GitHub Actions (OIDC token) → SSH into VPS → git pull → Vault render `.env` → docker compose (prod) up -d
+```
+
+### One-time Vault setup (run on the VPS)
+
+1. Start the Vault container (if not running):
+
+```bash
+docker compose -f docker-compose.yml up -d vault
+```
+
+2. Bootstrap **GitHub JWT auth** + **KV v2** for infra deploys:
+
+```bash
+cd ~/hashcode-infra
+
+VAULT_TOKEN='<admin-token>' \
+GITHUB_REPOSITORY='owner/repo' \
+bash ./scripts/vault-bootstrap-github-jwt-kv.sh
+```
+
+Where:
+- `VAULT_TOKEN` is a token with admin rights (used only during bootstrap).
+- `GITHUB_REPOSITORY` is the exact repo that runs the workflow (format: `owner/repo`).
+- The Vault role created by the bootstrap script is bound to that `owner/repo` via the GitHub JWT `repository` claim.
+- The GitHub Actions workflow requests an OIDC token with audience `vault` (configured in the workflow).
+
+3. Put infra secrets into Vault KV v2.
+
+The workflow expects:
+- Vault path: `secret/infra/prod`
+- Fields: `INFRA_DOMAIN`, `EMAIL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`
+
+Example:
+
+```bash
+vault kv put secret/infra/prod \
+  INFRA_DOMAIN='hashcode.org' \
+  EMAIL='admin@hashcode.org' \
+  POSTGRES_USER='rabotka' \
+  POSTGRES_PASSWORD='...' \
+  REDIS_PASSWORD='...' \
+  GRAFANA_ADMIN_USER='admin' \
+  GRAFANA_ADMIN_PASSWORD='...'
 ```
 
 ### Required GitHub Secrets
@@ -239,13 +286,11 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `VPS_USER`          | SSH user (e.g. `ubuntu`, `root`)       |
 | `VPS_SSH_KEY`       | Private SSH key (full PEM content)     |
 | `VPS_PORT`          | SSH port (usually `22`)                |
-| `INFRA_DOMAIN`      | `hashcode.org`                         |
-| `EMAIL`             | Let's Encrypt / admin email            |
-| `POSTGRES_USER`     | Postgres username                      |
-| `POSTGRES_PASSWORD` | Postgres password                      |
-| `REDIS_PASSWORD`    | Redis password                         |
 
-> The `.env` file is never stored in git — it is written on the VPS at deploy time directly from secrets.
+Notes:
+- No Vault credentials are stored as GitHub Secrets.
+- The workflow requests a **GitHub OIDC token** and uses it to authenticate to Vault.
+- The `.env` file is never stored in git — it is rendered on the VPS at deploy time from Vault.
 
 ### Branches
 

@@ -4,6 +4,10 @@ storage "file" {
   path = "/vault/data"
 }
 
+auth "approle" {
+  path = "auth/approle"
+}
+
 listener "tcp" {
   address     = "0.0.0.0:8200"
   tls_disable = true  # TLS handled by Traefik
