@@ -10,10 +10,25 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Get GitHub OIDC token (for Vault)
+        id: oidc
+        env:
+          AUDIENCE: vault
+        run: |
+          set -euo pipefail
+          OIDC_JSON="$(curl -sS \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}")"
+          TOKEN="$(python -c 'import json,sys; print(json.loads(sys.stdin.read())["value"])' <<<"$OIDC_JSON")"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -25,29 +40,16 @@ jobs:
           script: |
             set -e
 
-            # Pull latest infra code
+            # Move into the repo (so compose paths work).
             cd ~/hashcode-infra
             git pull origin main
 
-            # Write .env from secrets
-            cat > .env <<EOF
-            # ── Infra domain ──────────────────────────────────────────────────
-            INFRA_DOMAIN=${{ secrets.INFRA_DOMAIN }}
+            # Start Vault first (so we can read secrets and render the VPS .env).
+            docker compose -f docker-compose.yml up -d vault
 
-            # ── TLS ───────────────────────────────────────────────────────────
-            EMAIL=${{ secrets.EMAIL }}
-
-            # ── Postgres ──────────────────────────────────────────────────────
-            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-
-            # ── Redis ─────────────────────────────────────────────────────────
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-
-            # ── Grafana ───────────────────────────────────────────────────────
-            GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}
-            GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-            EOF
+            # Render .env from Vault (GitHub Actions JWT -> KV)
+            GITHUB_JWT='${{ steps.oidc.outputs.token }}' \
+            bash ./scripts/render-infra-env-from-vault.sh prod .env
 
             # Ensure bootstrap has run (idempotent)
             mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault traefik
