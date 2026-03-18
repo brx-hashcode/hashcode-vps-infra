@@ -1,3 +1,4 @@
 .env
 traefik/acme.json
 data/
+docker-compose.override.yml

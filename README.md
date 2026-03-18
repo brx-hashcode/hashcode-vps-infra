@@ -170,27 +170,40 @@ docker compose up -d
 
 ## CI/CD — Automatic Deployment
 
-Pushing to `main` triggers a GitHub Actions workflow that SSHs into the VPS, writes the `.env` from secrets, and redeploys the stack.
+The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) triggers on **pull requests targeting `main` or `develop`**. It SSHs into the VPS, writes `.env` from GitHub secrets, and redeploys the stack.
+
+```
+PR opened/updated → GitHub Actions → SSH into VPS → git pull → write .env → docker compose up -d
+```
 
 ### Required GitHub Secrets
 
 Go to **Settings → Secrets and variables → Actions** and add:
 
-| Secret              | Description                              |
-|---------------------|------------------------------------------|
-| `VPS_HOST`          | VPS IP address or hostname               |
-| `VPS_USER`          | SSH user (e.g. `ubuntu`, `root`)         |
-| `VPS_SSH_KEY`       | Private SSH key (the full PEM content)   |
-| `VPS_PORT`          | SSH port (usually `22`)                  |
-| `INFRA_DOMAIN`      | `hashcode.org`                           |
-| `EMAIL`             | Let's Encrypt email                      |
-| `POSTGRES_USER`     | Postgres username                        |
-| `POSTGRES_PASSWORD` | Postgres password                        |
-| `REDIS_PASSWORD`    | Redis password                           |
+| Secret              | Description                            |
+|---------------------|----------------------------------------|
+| `VPS_HOST`          | VPS IP address or hostname             |
+| `VPS_USER`          | SSH user (e.g. `ubuntu`, `root`)       |
+| `VPS_SSH_KEY`       | Private SSH key (full PEM content)     |
+| `VPS_PORT`          | SSH port (usually `22`)                |
+| `INFRA_DOMAIN`      | `hashcode.org`                         |
+| `EMAIL`             | Let's Encrypt / admin email            |
+| `POSTGRES_USER`     | Postgres username                      |
+| `POSTGRES_PASSWORD` | Postgres password                      |
+| `REDIS_PASSWORD`    | Redis password                         |
+
+> The `.env` file is never stored in git — it is written on the VPS at deploy time directly from secrets.
+
+### Branches
+
+| Branch    | Trigger         |
+|-----------|-----------------|
+| `main`    | PR → main       |
+| `develop` | PR → develop    |
 
 ### First-time VPS setup
 
-Before the first deploy, SSH in manually and clone the repo:
+Before the first automated deploy, SSH in manually and clone the repo:
 
 ```bash
 git clone https://github.com/brx-hashcode/hashcode-vps-infra.git ~/hashcode-infra
