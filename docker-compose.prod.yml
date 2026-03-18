@@ -1,0 +1,48 @@
+# Production overlay — adds TLS, HTTPS redirect, and Let's Encrypt.
+#
+# Usage on VPS:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+
+  traefik:
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/acme.json:/acme.json"
+
+  qdrant:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.qdrant.entrypoints=websecure"
+      - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
+      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+
+  grafana:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  vault:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=rabotka-public"
+      - "traefik.http.routers.vault.rule=Host(`vault.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.vault.entrypoints=websecure"
+      - "traefik.http.routers.vault.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vault.loadbalancer.server.port=8200"
