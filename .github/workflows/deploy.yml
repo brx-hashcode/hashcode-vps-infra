@@ -28,8 +28,6 @@ jobs:
           POSTGRES_USER=ci
           POSTGRES_PASSWORD=ci
           REDIS_PASSWORD=ci
-          GRAFANA_ADMIN_USER=ci
-          GRAFANA_ADMIN_PASSWORD=ci
           TRAEFIK_DASHBOARD_AUTH=ci
           EOF
 
@@ -57,7 +55,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,GRAFANA_ADMIN_USER,GRAFANA_ADMIN_PASSWORD
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD
           script: |
             set -e
 
@@ -74,14 +72,11 @@ jobs:
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
             REDIS_PASSWORD=${REDIS_PASSWORD}
-
-            GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
-            GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
             EOF
             chmod 600 .env
 
             # Ensure bootstrap has run (idempotent)
-            mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault data/prometheus traefik
+            mkdir -p data/postgres data/redis data/qdrant data/vault traefik
             if [ ! -f traefik/acme.json ]; then
               touch traefik/acme.json
               chmod 600 traefik/acme.json
@@ -96,8 +91,6 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-          GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
-          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
 
   smoke-test:
     name: Smoke tests
@@ -116,10 +109,10 @@ jobs:
             -u "${{ secrets.TRAEFIK_DASHBOARD_AUTH_PLAIN }}" \
             "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/rawdata" > /dev/null
 
-      - name: Check Grafana
+      - name: Check Portainer
         run: |
           curl -sf --max-time 10 \
-            "https://grafana.${{ secrets.INFRA_DOMAIN }}/api/health" | grep -q '"database": "ok"'
+            "https://portainer.${{ secrets.INFRA_DOMAIN }}/api/system/status" | grep -q '"platform"'
 
       - name: Check Qdrant
         run: |

@@ -39,14 +39,14 @@ services:
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
-  grafana:
+  portainer:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
 
   vault:
     labels:
