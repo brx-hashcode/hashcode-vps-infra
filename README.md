@@ -11,7 +11,7 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 | Postgres  | postgres:16         | internal only                      |
 | Redis     | redis:7             | internal only                      |
 | Qdrant    | qdrant/qdrant       | `qdrant.hashcode.org`              |
-| Grafana   | grafana/grafana     | `grafana.hashcode.org`             |
+| Portainer | portainer/portainer-ce | `portainer.hashcode.org`        |
 | Vault     | hashicorp/vault     | `vault.hashcode.org`               |
 
 
@@ -90,7 +90,7 @@ services:
 - A server with ports 80 and 443 open
 - DNS A records for all infra subdomains pointing to the VPS:
   - `traefik.hashcode.org`
-  - `grafana.hashcode.org`
+  - `portainer.hashcode.org`
   - `qdrant.hashcode.org`
   - `sonar.hashcode.org`
   - `vault.hashcode.org`
@@ -129,9 +129,6 @@ POSTGRES_PASSWORD=<strong-password>
 
 REDIS_PASSWORD=<strong-password>
 
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=<strong-password>
-
 # Generate with: htpasswd -nb admin yourpassword
 TRAEFIK_DASHBOARD_AUTH=admin:$apr1$...
 ```
@@ -166,8 +163,6 @@ hashcode-infra/
 │   ├── postgres/
 │   ├── redis/
 │   ├── qdrant/
-│   ├── grafana/
-│   ├── sonarqube/
 │   └── vault/
 └── scripts/
     └── setup.sh                # One-time server bootstrap
@@ -200,7 +195,7 @@ The `docker-compose.override.yml` is auto-loaded by Docker Compose and replaces 
 | Service   | Local URL                                            |
 | --------- | ---------------------------------------------------- |
 | Traefik   | [http://localhost:8080](http://localhost:8080)       |
-| Grafana   | [http://grafana.localhost](http://grafana.localhost) |
+| Portainer | [http://portainer.localhost](http://portainer.localhost) |
 | Qdrant    | [http://qdrant.localhost](http://qdrant.localhost)   |
 | Vault     | [http://vault.localhost](http://vault.localhost)     |
 
@@ -226,7 +221,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 docker compose logs -f
 
 # Restart a single service
-docker compose restart grafana
+docker compose restart portainer
 
 # Stop everything
 docker compose down
@@ -271,8 +266,6 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `POSTGRES_USER`          | Postgres username                                     |
 | `POSTGRES_PASSWORD`      | Postgres password                                     |
 | `REDIS_PASSWORD`         | Redis password                                        |
-| `GRAFANA_ADMIN_USER`     | Grafana admin username                                |
-| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password                                |
 | `TRAEFIK_DASHBOARD_AUTH` | Basic auth string (`htpasswd -nb admin yourpassword`) |
 
 
@@ -296,3 +289,15 @@ cd ~/hashcode-infra
 ```
 
 After that, all subsequent deploys are handled automatically by the workflow.
+
+---
+
+## Deployment Flow
+
+```
+Push / PR → GitHub Actions → SSH into VPS → git pull → write .env → docker compose (prod) up -d
+```
+
+Portainer gives you a live view of all running containers, logs, and resource usage at `portainer.hashcode.org`.
+
+> **First-time Portainer setup:** On first access, Portainer will prompt you to create an admin account. Do this within 5 minutes of first boot — otherwise the container locks itself for security and needs a restart.
