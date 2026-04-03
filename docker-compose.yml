@@ -37,7 +37,7 @@ services:
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: postgres
     restart: always
     env_file:

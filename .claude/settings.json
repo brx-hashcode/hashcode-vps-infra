@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -H \"Host: mail.localhost\" http://localhost:80)"
+    ]
+  }
+}
