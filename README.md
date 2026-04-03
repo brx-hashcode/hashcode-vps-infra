@@ -7,12 +7,12 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 
 | Service   | Image               | URL                                |
 | --------- | ------------------- | ---------------------------------- |
-| Traefik   | traefik:v3          | `traefik.hashcode.org` (dashboard) |
+| Traefik   | traefik:v3          | `traefik.hashcode.digital` (dashboard) |
 | Postgres  | postgres:16         | internal only                      |
 | Redis     | redis:7             | internal only                      |
-| Qdrant    | qdrant/qdrant       | `qdrant.hashcode.org`              |
-| Portainer | portainer/portainer-ce | `portainer.hashcode.org`        |
-| Vault     | hashicorp/vault     | `vault.hashcode.org`               |
+| Qdrant    | qdrant/qdrant       | `qdrant.hashcode.digital`              |
+| Portainer | portainer/portainer-ce | `portainer.hashcode.digital`        |
+| Vault     | hashicorp/vault     | `vault.hashcode.digital`               |
 
 
 TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge).
@@ -33,7 +33,7 @@ TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge
 
 ## Domain Strategy
 
-This infra repo owns the `**hashcode.org**` domain for shared tooling.
+This infra repo owns the `**hashcode.digital**` domain for shared tooling.
 Each project is deployed under its own domain with environment-based subdomains.
 
 ### Example — project `rabotka`
@@ -89,11 +89,11 @@ services:
 - Docker + Docker Compose v2
 - A server with ports 80 and 443 open
 - DNS A records for all infra subdomains pointing to the VPS:
-  - `traefik.hashcode.org`
-  - `portainer.hashcode.org`
-  - `qdrant.hashcode.org`
-  - `sonar.hashcode.org`
-  - `vault.hashcode.org`
+  - `traefik.hashcode.digital`
+  - `portainer.hashcode.digital`
+  - `qdrant.hashcode.digital`
+  - `sonar.hashcode.digital`
+  - `vault.hashcode.digital`
 
 ---
 
@@ -121,8 +121,8 @@ This will:
 **3. Fill in `.env`**
 
 ```bash
-INFRA_DOMAIN=hashcode.org
-EMAIL=admin@hashcode.org
+INFRA_DOMAIN=hashcode.digital
+EMAIL=admin@hashcode.digital
 
 POSTGRES_USER=rabotka
 POSTGRES_PASSWORD=<strong-password>
@@ -261,7 +261,7 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `VPS_USER`               | SSH user (e.g. `ubuntu`, `root`)                      |
 | `VPS_SSH_KEY`            | Private SSH key (full PEM content)                    |
 | `VPS_PORT`               | SSH port (usually `22`)                               |
-| `INFRA_DOMAIN`           | Base domain (e.g. `hashcode.org`)                     |
+| `INFRA_DOMAIN`           | Base domain (e.g. `hashcode.digital`)                     |
 | `EMAIL`                  | Let's Encrypt admin email                             |
 | `POSTGRES_USER`          | Postgres username                                     |
 | `POSTGRES_PASSWORD`      | Postgres password                                     |
@@ -298,6 +298,6 @@ After that, all subsequent deploys are handled automatically by the workflow.
 Push / PR → GitHub Actions → SSH into VPS → git pull → write .env → docker compose (prod) up -d
 ```
 
-Portainer gives you a live view of all running containers, logs, and resource usage at `portainer.hashcode.org`.
+Portainer gives you a live view of all running containers, logs, and resource usage at `portainer.hashcode.digital`.
 
 > **First-time Portainer setup:** On first access, Portainer will prompt you to create an admin account. Do this within 5 minutes of first boot — otherwise the container locks itself for security and needs a restart.

@@ -23,8 +23,8 @@ jobs:
       - name: Create dummy .env for validation
         run: |
           cat > .env <<EOF
-          INFRA_DOMAIN=hashcode.org
-          EMAIL=ci@hashcode.org
+          INFRA_DOMAIN=hashcode.digital
+          EMAIL=ci@hashcode.digital
           POSTGRES_USER=ci
           POSTGRES_PASSWORD=ci
           REDIS_PASSWORD=ci
@@ -65,7 +65,7 @@ jobs:
 
             # Write .env from GitHub Secrets (passed as environment variables).
             cat > .env <<EOF
-            INFRA_DOMAIN=${INFRA_DOMAIN}
+            INFRA_DOMAIN=hashcode.digital
             EMAIL=${EMAIL}
 
             POSTGRES_USER=${POSTGRES_USER}
@@ -85,6 +85,15 @@ jobs:
             # Deploy with production overlay
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Deploy Mailcow override (if Mailcow is set up)
+            if [ -d /opt/mailcow ]; then
+              echo "==> Updating Mailcow override..."
+              cp ~/hashcode-infra/mailcow/docker-compose.override.yml /opt/mailcow/docker-compose.override.yml
+              cd /opt/mailcow
+              docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --remove-orphans
+              cd ~/hashcode-infra
+            fi
         env:
           INFRA_DOMAIN: ${{ secrets.INFRA_DOMAIN }}
           EMAIL: ${{ secrets.EMAIL }}
@@ -123,3 +132,9 @@ jobs:
         run: |
           curl -sf --max-time 10 \
             "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
+
+      - name: Check Mailcow (if deployed)
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://mail.hashcode.digital/" > /dev/null
