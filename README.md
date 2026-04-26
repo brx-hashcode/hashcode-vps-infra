@@ -5,14 +5,17 @@ Shared deployment infrastructure for the brx-hashcode organization, managed with
 ## Stack
 
 
-| Service   | Image               | URL                                |
-| --------- | ------------------- | ---------------------------------- |
-| Traefik   | traefik:v3          | `traefik.hashcode.digital` (dashboard) |
-| Postgres  | postgres:16         | internal only                      |
-| Redis     | redis:7             | internal only                      |
-| Qdrant    | qdrant/qdrant       | `qdrant.hashcode.digital`              |
-| Portainer | portainer/portainer-ce | `portainer.hashcode.digital`        |
-| Vault     | hashicorp/vault     | `vault.hashcode.digital`               |
+| Service    | Image                  | URL                                     |
+| ---------- | ---------------------- | --------------------------------------- |
+| Traefik    | traefik:v3             | `traefik.hashcode.digital` (dashboard)  |
+| Postgres   | postgres:17            | internal only (direct: port 5432)       |
+| PgBouncer  | bitnami/pgbouncer      | internal only (pool: port 5432)         |
+| Redis      | redis:7                | internal only                           |
+| Qdrant     | qdrant/qdrant          | `qdrant.hashcode.digital`               |
+| Portainer  | portainer/portainer-ce | `portainer.hashcode.digital`            |
+| Vault      | hashicorp/vault        | `vault.hashcode.digital`               |
+
+> **PgBouncer** runs in **transaction mode** in front of Postgres. App containers connect to `pgbouncer:5432`; migrations must bypass it and connect directly to `postgres:5432`.
 
 
 TLS certificates are provisioned automatically via Let's Encrypt (HTTP challenge).
@@ -81,6 +84,20 @@ services:
 > - `traefik.docker.network=hashcode-public` is required when a container is on multiple networks — without it, Traefik may pick the wrong network IP and return 504.
 > - `loadbalancer.server.port` must match the port your app listens on inside the container.
 > - Router names (e.g. `rabotka-api-prod`) must be **unique** across all containers on the server.
+
+### Database connection pattern
+
+Apps on `hashcode-internal` reach Postgres through PgBouncer:
+
+| Use case | Host | Note |
+|---|---|---|
+| Runtime (`DATABASE_URL`) | `pgbouncer:5432` | Append `?pgbouncer=true` for Prisma |
+| Migrations (`DATABASE_DIRECT_URL`) | `postgres:5432` | Bypasses transaction-mode pool |
+
+```env
+DATABASE_URL=postgresql://user:pass@pgbouncer:5432/mydb?pgbouncer=true
+DATABASE_DIRECT_URL=postgresql://user:pass@postgres:5432/mydb
+```
 
 ---
 
