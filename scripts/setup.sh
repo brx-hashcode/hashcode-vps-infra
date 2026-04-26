@@ -11,7 +11,7 @@ if [ ! -f .env ]; then
 fi
 
 echo "==> Creating data directories..."
-mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault
+mkdir -p data/postgres data/redis data/qdrant data/grafana data/vault data/pgbouncer
 
 echo "==> Creating traefik/acme.json..."
 mkdir -p traefik
