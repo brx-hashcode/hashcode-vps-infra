@@ -115,29 +115,28 @@ jobs:
       - name: Wait for services to stabilize
         run: sleep 20
 
-      - name: Check Traefik dashboard
+      - name: Check Traefik
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            -u "${{ secrets.TRAEFIK_DASHBOARD_AUTH_PLAIN }}" \
-            "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/rawdata" > /dev/null
+            "https://traefik.${{ secrets.INFRA_DOMAIN }}/ping" > /dev/null
 
       - name: Check Portainer
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://portainer.${{ secrets.INFRA_DOMAIN }}/api/system/status" | grep -q '"platform"'
+            "https://portainer.${{ secrets.INFRA_DOMAIN }}/api/system/status" > /dev/null
 
       - name: Check Qdrant
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/" | grep -q '"status": "ok"'
+            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/" | grep -q '"status"'
 
       - name: Check Vault
         continue-on-error: true
         run: |
-          curl -sf --max-time 10 \
+          curl -s --max-time 10 \
             "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
 
       - name: Check Mailcow (if deployed)

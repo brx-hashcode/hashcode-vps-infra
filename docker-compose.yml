@@ -23,6 +23,7 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--api.dashboard=true"
+      - "--ping=true"
     ports:
       - "80:80"
       - "443:443"
