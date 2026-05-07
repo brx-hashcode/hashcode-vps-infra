@@ -73,7 +73,7 @@ jobs:
 
             REDIS_PASSWORD=${REDIS_PASSWORD}
 
-            TRAEFIK_DASHBOARD_AUTH=${TRAEFIK_DASHBOARD_AUTH}
+            TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')
             EOF
             chmod 600 .env
 
