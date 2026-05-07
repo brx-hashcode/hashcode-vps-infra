@@ -111,6 +111,8 @@ services:
     image: hashicorp/vault:latest
     container_name: vault
     restart: always
+    ports:
+      - "127.0.0.1:8200:8200"
     environment:
       - VAULT_ADDR=http://0.0.0.0:8200
       - SKIP_SETCAP=true
