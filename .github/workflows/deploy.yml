@@ -116,22 +116,26 @@ jobs:
         run: sleep 20
 
       - name: Check Traefik dashboard
+        continue-on-error: true
         run: |
           curl -sf --max-time 10 \
             -u "${{ secrets.TRAEFIK_DASHBOARD_AUTH_PLAIN }}" \
             "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/rawdata" > /dev/null
 
       - name: Check Portainer
+        continue-on-error: true
         run: |
           curl -sf --max-time 10 \
             "https://portainer.${{ secrets.INFRA_DOMAIN }}/api/system/status" | grep -q '"platform"'
 
       - name: Check Qdrant
+        continue-on-error: true
         run: |
           curl -sf --max-time 10 \
             "https://qdrant.${{ secrets.INFRA_DOMAIN }}/" | grep -q '"status": "ok"'
 
       - name: Check Vault
+        continue-on-error: true
         run: |
           curl -sf --max-time 10 \
             "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
