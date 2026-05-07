@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH
           script: |
             set -e
 
@@ -72,6 +72,8 @@ jobs:
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
             REDIS_PASSWORD=${REDIS_PASSWORD}
+
+            TRAEFIK_DASHBOARD_AUTH=${TRAEFIK_DASHBOARD_AUTH}
             EOF
             chmod 600 .env
 
@@ -100,6 +102,7 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
 
   smoke-test:
     name: Smoke tests
