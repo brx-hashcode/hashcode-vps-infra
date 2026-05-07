@@ -110,10 +110,9 @@ services:
     image: hashicorp/vault:latest
     container_name: vault
     restart: always
-    cap_add:
-      - IPC_LOCK
     environment:
       - VAULT_ADDR=http://0.0.0.0:8200
+      - SKIP_SETCAP=true
     volumes:
       - ./data/vault:/vault/data
       - ./vault/config.hcl:/vault/config/config.hcl
