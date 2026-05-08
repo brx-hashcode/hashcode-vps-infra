@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD
           script: |
             set -e
 
@@ -73,12 +73,14 @@ jobs:
 
             REDIS_PASSWORD=${REDIS_PASSWORD}
 
+            GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
+
             TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')
             EOF
             chmod 600 .env
 
             # Ensure bootstrap has run (idempotent)
-            mkdir -p data/postgres data/redis data/qdrant data/vault traefik
+            mkdir -p data/postgres data/redis data/qdrant data/vault traefik data/prometheus data/grafana
             if [ ! -f traefik/acme.json ]; then
               touch traefik/acme.json
               chmod 600 traefik/acme.json
@@ -93,6 +95,7 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
 
   smoke-test:

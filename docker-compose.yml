@@ -10,6 +10,8 @@ volumes:
   portainer_data:
   qdrant_data:
   vault_data:
+  prometheus_data:
+  grafana_data:
 
 
 services:
@@ -106,6 +108,51 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: always
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    networks:
+      - internal
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    networks:
+      - internal
+      - public
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.${INFRA_DOMAIN}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - internal
+      - public
 
   vault:
     image: hashicorp/vault:latest
