@@ -151,6 +151,13 @@ services:
       - GF_ALERTING_ENABLED=true
       - GF_UNIFIED_ALERTING_ENABLED=true
       - VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}
+      - GF_AUTH_GITHUB_ENABLED=true
+      - GF_AUTH_GITHUB_CLIENT_ID=${GF_GITHUB_CLIENT_ID}
+      - GF_AUTH_GITHUB_CLIENT_SECRET=${GF_GITHUB_CLIENT_SECRET}
+      - GF_AUTH_GITHUB_ALLOWED_ORGANIZATIONS=brx-hashcode
+      - GF_AUTH_GITHUB_ALLOW_SIGN_UP=false
+      - GF_AUTH_GITHUB_SCOPES=user:email,read:org
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
