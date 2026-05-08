@@ -4,7 +4,7 @@ set -euo pipefail
 
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 BACKUP_DIR="/tmp/hashcode-backup-${TIMESTAMP}"
-REPO_DIR="/root/hashcode-vps-infra"
+REPO_DIR="${HOME}/hashcode-vps-infra"
 BUCKET="hashcode-backups"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 
