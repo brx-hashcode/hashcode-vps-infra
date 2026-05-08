@@ -60,6 +60,9 @@ services:
       - "traefik.http.services.vault.loadbalancer.server.port=8200"
 
   grafana:
+    networks:
+      - public
+      - internal
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
@@ -69,6 +72,9 @@ services:
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
   prometheus:
+    networks:
+      - public
+      - internal
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
