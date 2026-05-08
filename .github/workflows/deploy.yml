@@ -33,6 +33,7 @@ jobs:
           POSTGRES_PASSWORD=ci
           REDIS_PASSWORD=ci
           TRAEFIK_DASHBOARD_AUTH=ci
+          VPS_SLACK_ALERT_WEBHOOK=ci
           EOF
 
       - name: Validate base compose
@@ -60,7 +61,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,GRAFANA_SMTP_USER,GRAFANA_SMTP_PASSWORD,GRAFANA_ALERT_EMAIL
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,GRAFANA_SMTP_USER,GRAFANA_SMTP_PASSWORD,VPS_SLACK_ALERT_WEBHOOK
           script: |
             set -e
 
@@ -81,7 +82,7 @@ jobs:
             GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
             GRAFANA_SMTP_USER=${GRAFANA_SMTP_USER}
             GRAFANA_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD}
-            GRAFANA_ALERT_EMAIL=${GRAFANA_ALERT_EMAIL}
+            VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}
 
             TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')
             EOF
@@ -106,7 +107,7 @@ jobs:
           GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
           GRAFANA_SMTP_USER: ${{ secrets.GRAFANA_SMTP_USER }}
           GRAFANA_SMTP_PASSWORD: ${{ secrets.GRAFANA_SMTP_PASSWORD }}
-          GRAFANA_ALERT_EMAIL: ${{ secrets.GRAFANA_ALERT_EMAIL }}
+          VPS_SLACK_ALERT_WEBHOOK: ${{ secrets.VPS_SLACK_ALERT_WEBHOOK }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
 
   smoke-test:
@@ -155,3 +156,35 @@ jobs:
         run: |
           curl -s --max-time 10 \
             "https://prometheus.${{ secrets.INFRA_DOMAIN }}/-/healthy" | grep -q 'Healthy\|401'
+
+      - name: Slack notify success
+        if: success()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#00B32C",
+                  "text": "✅ *Deploy Succeeded*\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }
+
+      - name: Slack notify failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#B3000C",
+                  "text": "🚨 *Deploy Failed*\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }

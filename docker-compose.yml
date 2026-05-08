@@ -158,6 +158,7 @@ services:
       - GF_SMTP_SKIP_VERIFY=true
       - GF_ALERTING_ENABLED=true
       - GF_UNIFIED_ALERTING_ENABLED=true
+      - VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
