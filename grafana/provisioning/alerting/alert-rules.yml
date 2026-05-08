@@ -46,6 +46,7 @@ groups:
         for: 5m
         annotations:
           summary: "CPU usage is above 80% for 5 minutes"
+          description: "The VPS CPU has been under heavy load (>80%) for more than 5 minutes. Check for runaway processes or scale up resources."
         labels:
           severity: warning
 
@@ -89,6 +90,7 @@ groups:
         for: 5m
         annotations:
           summary: "RAM usage is above 85% for 5 minutes"
+          description: "The VPS is running low on memory (>85% used). Consider restarting heavy containers or increasing swap/RAM."
         labels:
           severity: warning
 
@@ -132,5 +134,6 @@ groups:
         for: 5m
         annotations:
           summary: "Disk usage is above 85%"
+          description: "The VPS root disk is almost full (>85% used). Clean up Docker images, logs, or old data before the disk fills up completely."
         labels:
           severity: critical
