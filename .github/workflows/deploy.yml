@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,GRAFANA_SMTP_USER,GRAFANA_SMTP_PASSWORD,GRAFANA_ALERT_EMAIL
           script: |
             set -e
 
@@ -74,6 +74,9 @@ jobs:
             REDIS_PASSWORD=${REDIS_PASSWORD}
 
             GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
+            GRAFANA_SMTP_USER=${GRAFANA_SMTP_USER}
+            GRAFANA_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD}
+            GRAFANA_ALERT_EMAIL=${GRAFANA_ALERT_EMAIL}
 
             TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')
             EOF
@@ -96,6 +99,9 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+          GRAFANA_SMTP_USER: ${{ secrets.GRAFANA_SMTP_USER }}
+          GRAFANA_SMTP_PASSWORD: ${{ secrets.GRAFANA_SMTP_PASSWORD }}
+          GRAFANA_ALERT_EMAIL: ${{ secrets.GRAFANA_ALERT_EMAIL }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
 
   smoke-test:
@@ -113,7 +119,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://traefik.${{ secrets.INFRA_DOMAIN }}/ping" > /dev/null
+            "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/overview" > /dev/null
 
       - name: Check Portainer
         continue-on-error: true
@@ -125,10 +131,22 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://qdrant.${{ secrets.INFRA_DOMAIN}}/" | grep -q '"status"'
+            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/healthz" | grep -q 'healthz check passed'
 
       - name: Check Vault
         continue-on-error: true
         run: |
           curl -s --max-time 10 \
             "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
+
+      - name: Check Grafana
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://grafana.${{ secrets.INFRA_DOMAIN }}/api/health" | grep -q '"ok"'
+
+      - name: Check Prometheus
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://prometheus.${{ secrets.INFRA_DOMAIN }}/-/healthy" | grep -q 'Prometheus Server is Healthy'
