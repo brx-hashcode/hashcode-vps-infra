@@ -8,5 +8,5 @@ contactPoints:
         type: slack
         settings:
           url: "${VPS_SLACK_ALERT_WEBHOOK}"
-          title: "🚨 Grafana Alert — {{ .CommonLabels.alertname }}"
-          text: "{{ range .Alerts }}*{{ .Annotations.summary }}*\n{{ .Annotations.description }}\n{{ end }}"
+          title: "{{ if eq .Status \"firing\" }}🚨{{ else }}✅{{ end }} {{ .CommonLabels.alertname }}"
+          text: "{{ range .Alerts }}*Status:* {{ $.Status | toUpper }}\n*Summary:* {{ .Annotations.summary }}\n*Description:* {{ .Annotations.description }}\n*Severity:* {{ .Labels.severity }}\n*Started:* {{ .StartsAt.Format \"2006-01-02 15:04:05 UTC\" }}\n*Dashboard:* https://grafana.hashcode.digital\n{{ end }}"
