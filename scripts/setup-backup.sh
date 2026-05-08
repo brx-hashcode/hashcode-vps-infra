@@ -30,8 +30,8 @@ chmod 600 ~/.config/rclone/rclone.conf
 
 # Store env vars for backup script
 cat > /etc/hashcode-backup.env <<EOF
-POSTGRES_USER=${POSTGRES_USER}
-SLACK_WEBHOOK_URL=${SLACK_WEBHOOK}
+export POSTGRES_USER=${POSTGRES_USER}
+export SLACK_WEBHOOK_URL=${SLACK_WEBHOOK}
 EOF
 chmod 600 /etc/hashcode-backup.env
 
