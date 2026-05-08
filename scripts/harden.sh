@@ -22,7 +22,7 @@ sed -i "s/^#\?MaxAuthTries .*/MaxAuthTries 3/" "$SSHD"
 sed -i "s/^#\?X11Forwarding .*/X11Forwarding no/" "$SSHD"
 sed -i "s/^#\?AllowAgentForwarding .*/AllowAgentForwarding no/" "$SSHD"
 
-systemctl restart sshd
+systemctl restart ssh
 echo "    SSH hardened on port ${SSH_PORT}. Make sure your key is loaded before closing this session!"
 
 echo "==> [4/6] Configuring UFW firewall..."
