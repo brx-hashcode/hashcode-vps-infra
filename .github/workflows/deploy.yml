@@ -118,6 +118,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
       - name: Wait for services to stabilize
         run: sleep 20
 
@@ -168,7 +171,7 @@ jobs:
               "attachments": [
                 {
                   "color": "#00B32C",
-                  "text": "Deploy Succeeded\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  "text": "Deploy Succeeded\nBranch: `${{ github.ref_name }}`\n${{ github.event.head_commit.message }}\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 }
               ]
             }
@@ -184,7 +187,7 @@ jobs:
               "attachments": [
                 {
                   "color": "#B3000C",
-                  "text": "Deploy Failed\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  "text": "Deploy Failed\nBranch: `${{ github.ref_name }}`\n${{ github.event.head_commit.message }}\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 }
               ]
             }
