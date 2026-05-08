@@ -57,3 +57,23 @@ services:
       - "traefik.http.routers.vault.entrypoints=websecure"
       - "traefik.http.routers.vault.tls.certresolver=letsencrypt"
       - "traefik.http.services.vault.loadbalancer.server.port=8200"
+
+  grafana:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hashcode-public"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  prometheus:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hashcode-public"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.prometheus.middlewares=prometheus-auth"
+      - "traefik.http.middlewares.prometheus-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
