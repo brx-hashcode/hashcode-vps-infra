@@ -18,9 +18,12 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--api.dashboard=true"
       - "--ping=true"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/acme.json:/acme.json"
+      - "./traefik/logs:/var/log/traefik"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
@@ -28,8 +31,16 @@ services:
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth,rate-limit"
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.middlewares.rate-limit.ratelimit.average=100"
+      - "traefik.http.middlewares.rate-limit.ratelimit.burst=50"
+      - "traefik.http.middlewares.rate-limit.ratelimit.period=1m"
+      - "traefik.http.middlewares.secure-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.secure-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.secure-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.secure-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.secure-headers.headers.frameDeny=true"
 
   qdrant:
     labels:
@@ -38,6 +49,7 @@ services:
       - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.qdrant.entrypoints=websecure"
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.qdrant.middlewares=rate-limit,secure-headers"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
   portainer:
@@ -47,6 +59,7 @@ services:
       - "traefik.http.routers.portainer.rule=Host(`portainer.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portainer.middlewares=rate-limit,secure-headers"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
 
   vault:
@@ -56,4 +69,5 @@ services:
       - "traefik.http.routers.vault.rule=Host(`vault.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.vault.entrypoints=websecure"
       - "traefik.http.routers.vault.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.vault.middlewares=rate-limit,secure-headers"
       - "traefik.http.services.vault.loadbalancer.server.port=8200"
