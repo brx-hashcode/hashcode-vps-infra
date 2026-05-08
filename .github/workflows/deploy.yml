@@ -113,7 +113,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://traefik.${{ secrets.INFRA_DOMAIN }}/ping" > /dev/null
+            "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/overview" > /dev/null
 
       - name: Check Portainer
         continue-on-error: true
@@ -125,7 +125,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://qdrant.${{ secrets.INFRA_DOMAIN}}/" | grep -q '"status"'
+            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/healthz" | grep -q 'healthz check passed'
 
       - name: Check Vault
         continue-on-error: true
