@@ -2,10 +2,11 @@ apiVersion: 1
 
 contactPoints:
   - orgId: 1
-    name: email-alerts
+    name: slack-alerts
     receivers:
-      - uid: email-alerts
-        type: email
+      - uid: slack-alerts
+        type: slack
         settings:
-          addresses: blondeau.nbif@gmail.com
-          singleEmail: false
+          url: "${VPS_SLACK_ALERT_WEBHOOK}"
+          title: "🚨 Grafana Alert — {{ .CommonLabels.alertname }}"
+          text: "{{ range .Alerts }}*{{ .Annotations.summary }}*\n{{ .Annotations.description }}\n{{ end }}"
