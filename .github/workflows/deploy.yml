@@ -184,7 +184,7 @@ jobs:
               "attachments": [
                 {
                   "color": "#B3000C",
-                  "text": "🚨 *Deploy Failed*\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  "text": "❌ *Deploy Failed*\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 }
               ]
             }
