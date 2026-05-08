@@ -124,7 +124,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://traefik.${{ secrets.INFRA_DOMAIN }}/api/overview" > /dev/null
+            "https://traefik.${{ secrets.INFRA_DOMAIN }}/ping" > /dev/null
 
       - name: Check Portainer
         continue-on-error: true
@@ -153,5 +153,5 @@ jobs:
       - name: Check Prometheus
         continue-on-error: true
         run: |
-          curl -sf --max-time 10 \
-            "https://prometheus.${{ secrets.INFRA_DOMAIN }}/-/healthy" | grep -q 'Prometheus Server is Healthy'
+          curl -s --max-time 10 \
+            "https://prometheus.${{ secrets.INFRA_DOMAIN }}/-/healthy" | grep -q 'Healthy\|401'

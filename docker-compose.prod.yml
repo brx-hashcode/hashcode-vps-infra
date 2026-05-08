@@ -18,6 +18,7 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--api.dashboard=true"
       - "--ping=true"
+      - "--ping.entrypoint=websecure"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/acme.json:/acme.json"
