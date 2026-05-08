@@ -78,7 +78,7 @@ jobs:
             chmod 600 .env
 
             # Ensure bootstrap has run (idempotent)
-            mkdir -p data/postgres data/redis data/qdrant data/vault traefik traefik/logs
+            mkdir -p data/postgres data/redis data/qdrant data/vault traefik
             if [ ! -f traefik/acme.json ]; then
               touch traefik/acme.json
               chmod 600 traefik/acme.json
@@ -87,15 +87,6 @@ jobs:
             # Deploy with production overlay
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-
-            # Deploy Mailcow override (if Mailcow is set up)
-            if [ -d /opt/mailcow ]; then
-              echo "==> Updating Mailcow override..."
-              cp ~/hashcode-vps-infra/mailcow/traefik-override.yml /opt/mailcow/docker-compose.override.yml
-              cd /opt/mailcow
-              docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --remove-orphans
-              cd ~/hashcode-vps-infra
-            fi
         env:
           INFRA_DOMAIN: ${{ secrets.INFRA_DOMAIN }}
           EMAIL: ${{ secrets.EMAIL }}
@@ -131,16 +122,10 @@ jobs:
         continue-on-error: true
         run: |
           curl -sf --max-time 10 \
-            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/" | grep -q '"status"'
+            "https://qdrant.${{ secrets.INFRA_DOMAIN}}/" | grep -q '"status"'
 
       - name: Check Vault
         continue-on-error: true
         run: |
           curl -s --max-time 10 \
             "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
-
-      - name: Check Mailcow (if deployed)
-        continue-on-error: true
-        run: |
-          curl -sf --max-time 10 \
-            "https://mail.hashcode.digital/" > /dev/null
