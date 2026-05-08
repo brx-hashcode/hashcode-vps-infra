@@ -31,7 +31,7 @@ sed -i 's/^HTTPS_PORT=.*/HTTPS_PORT=8443/' mailcow.conf
 sed -i 's/^HTTPS_BIND=.*/HTTPS_BIND=127.0.0.1/' mailcow.conf
 
 echo "==> Copying docker-compose.override.yml..."
-cp "${SCRIPT_DIR}/docker-compose.override.yml" "${MAILCOW_DIR}/docker-compose.override.yml"
+cp "${SCRIPT_DIR}/traefik-override.yml" "${MAILCOW_DIR}/docker-compose.override.yml"
 
 echo "==> Setup complete!"
 echo "    Start Mailcow with: ${SCRIPT_DIR}/start.sh"

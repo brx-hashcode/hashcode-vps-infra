@@ -91,7 +91,7 @@ jobs:
             # Deploy Mailcow override (if Mailcow is set up)
             if [ -d /opt/mailcow ]; then
               echo "==> Updating Mailcow override..."
-              cp ~/hashcode-vps-infra/mailcow/docker-compose.override.yml /opt/mailcow/docker-compose.override.yml
+              cp ~/hashcode-vps-infra/mailcow/traefik-override.yml /opt/mailcow/docker-compose.override.yml
               cd /opt/mailcow
               docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --remove-orphans
               cd ~/hashcode-vps-infra
