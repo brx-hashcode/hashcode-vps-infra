@@ -152,7 +152,7 @@ services:
       - GF_SMTP_HOST=smtp.zoho.com:465
       - GF_SMTP_USER=${GRAFANA_SMTP_USER}
       - GF_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD}
-      - GF_SMTP_FROM_ADDRESS=${GRAFANA_SMTP_USER}
+      - GF_SMTP_FROM_ADDRESS=admin@hashcode.digital
       - GF_SMTP_FROM_NAME=Grafana Alerts
       - GF_SMTP_STARTTLS_POLICY=NoStartTLS
       - GF_ALERTING_ENABLED=true
