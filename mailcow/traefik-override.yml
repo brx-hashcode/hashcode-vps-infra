@@ -14,7 +14,7 @@ services:
       - "traefik.http.routers.mailcow.rule=Host(`mail.hashcode.digital`)"
       - "traefik.http.routers.mailcow.entrypoints=websecure"
       - "traefik.http.routers.mailcow.tls.certresolver=letsencrypt"
-      - "traefik.http.services.mailcow.loadbalancer.server.port=80"
+      - "traefik.http.services.mailcow.loadbalancer.server.port=8080"
 
 networks:
   hashcode-public:
