@@ -61,7 +61,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ACCOUNT_ID
           script: |
             set -e
 
@@ -81,6 +81,9 @@ jobs:
               "GF_GITHUB_CLIENT_SECRET=${GF_GITHUB_CLIENT_SECRET}" \
               "VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}" \
               "TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')" \
+              "R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}" \
+              "R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}" \
+              "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}" \
               > .env
             chmod 600 .env
 
@@ -105,6 +108,9 @@ jobs:
           GF_GITHUB_CLIENT_SECRET: ${{ secrets.GF_GITHUB_CLIENT_SECRET }}
           VPS_SLACK_ALERT_WEBHOOK: ${{ secrets.VPS_SLACK_ALERT_WEBHOOK }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
 
   smoke-test:
     name: Smoke tests
