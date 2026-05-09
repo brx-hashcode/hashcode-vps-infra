@@ -8,6 +8,21 @@ REPO_DIR="/home/brx/hashcode-vps-infra"
 BUCKET="hashcode-backups"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 
+# Load R2 credentials from .env
+set -a; source "${REPO_DIR}/.env"; set +a
+
+# Configure rclone dynamically from env
+mkdir -p /root/.config/rclone
+cat > /root/.config/rclone/rclone.conf <<EOF
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = ${R2_ACCESS_KEY_ID}
+secret_access_key = ${R2_SECRET_ACCESS_KEY}
+endpoint = https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+acl = private
+EOF
+
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 notify_slack() {
