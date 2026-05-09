@@ -30,7 +30,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [80]
+                    params: [90]
                     type: gt
                   operator:
                     type: and
@@ -45,8 +45,8 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "CPU usage is above 80% for 5 minutes"
-          description: "The VPS CPU has been under heavy load (>80%) for more than 5 minutes. Check for runaway processes or scale up resources."
+          summary: "CPU usage is above 90% for 5 minutes"
+          description: "The VPS CPU has been under heavy load (>90%) for more than 5 minutes. Check for runaway processes or scale up resources."
         labels:
           severity: warning
 
@@ -74,7 +74,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [85]
+                    params: [90]
                     type: gt
                   operator:
                     type: and
@@ -89,8 +89,8 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "RAM usage is above 85% for 5 minutes"
-          description: "The VPS is running low on memory (>85% used). Consider restarting heavy containers or increasing swap/RAM."
+          summary: "RAM usage is above 90% for 5 minutes"
+          description: "The VPS is running low on memory (>90% used). Consider restarting heavy containers or increasing swap/RAM."
         labels:
           severity: warning
 
@@ -118,7 +118,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [85]
+                    params: [90]
                     type: gt
                   operator:
                     type: and
@@ -133,7 +133,7 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "Disk usage is above 85%"
-          description: "The VPS root disk is almost full (>85% used). Clean up Docker images, logs, or old data before the disk fills up completely."
+          summary: "Disk usage is above 90%"
+          description: "The VPS root disk is almost full (>90% used). Clean up Docker images, logs, or old data before the disk fills up completely."
         labels:
           severity: critical
