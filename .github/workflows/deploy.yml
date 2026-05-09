@@ -61,7 +61,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET
           script: |
             set -e
 
@@ -70,20 +70,18 @@ jobs:
             git pull origin develop
 
             # Write .env from GitHub Secrets (passed as environment variables).
-            cat > .env <<EOF
-            INFRA_DOMAIN=hashcode.digital
-            EMAIL=${EMAIL}
-
-            POSTGRES_USER=${POSTGRES_USER}
-            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-
-            REDIS_PASSWORD=${REDIS_PASSWORD}
-
-            GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
-            VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}
-
-            TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')
-            EOF
+            printf '%s\n' \
+              "INFRA_DOMAIN=hashcode.digital" \
+              "EMAIL=${EMAIL}" \
+              "POSTGRES_USER=${POSTGRES_USER}" \
+              "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+              "REDIS_PASSWORD=${REDIS_PASSWORD}" \
+              "GRAFANA_PASSWORD=${GRAFANA_PASSWORD}" \
+              "GF_GITHUB_CLIENT_ID=${GF_GITHUB_CLIENT_ID}" \
+              "GF_GITHUB_CLIENT_SECRET=${GF_GITHUB_CLIENT_SECRET}" \
+              "VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}" \
+              "TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')" \
+              > .env
             chmod 600 .env
 
             # Ensure bootstrap has run (idempotent)
@@ -103,6 +101,8 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+          GF_GITHUB_CLIENT_ID: ${{ secrets.GF_GITHUB_CLIENT_ID }}
+          GF_GITHUB_CLIENT_SECRET: ${{ secrets.GF_GITHUB_CLIENT_SECRET }}
           VPS_SLACK_ALERT_WEBHOOK: ${{ secrets.VPS_SLACK_ALERT_WEBHOOK }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
 
