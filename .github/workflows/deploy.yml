@@ -67,7 +67,8 @@ jobs:
 
             # Move into the repo (so compose paths work).
             cd ~/hashcode-vps-infra
-            git pull origin develop
+            git fetch origin develop
+            git reset --hard origin/develop
 
             # Write .env from GitHub Secrets (passed as environment variables).
             printf '%s\n' \
