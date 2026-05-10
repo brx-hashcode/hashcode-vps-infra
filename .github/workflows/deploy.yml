@@ -1,0 +1,195 @@
+name: Deploy Infra
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate:
+    name: Validate Compose files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Create dummy .env for validation
+        run: |
+          cat > .env <<EOF
+          INFRA_DOMAIN=hashcode.digital
+          EMAIL=ci@hashcode.digital
+          POSTGRES_USER=ci
+          POSTGRES_PASSWORD=ci
+          REDIS_PASSWORD=ci
+          TRAEFIK_DASHBOARD_AUTH=ci
+          VPS_SLACK_ALERT_WEBHOOK=ci
+          EOF
+
+      - name: Validate base compose
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Validate production overlay
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ACCOUNT_ID
+          script: |
+            set -e
+
+            # Move into the repo (so compose paths work).
+            cd ~/hashcode-vps-infra
+            git pull origin develop
+
+            # Write .env from GitHub Secrets (passed as environment variables).
+            printf '%s\n' \
+              "INFRA_DOMAIN=hashcode.digital" \
+              "EMAIL=${EMAIL}" \
+              "POSTGRES_USER=${POSTGRES_USER}" \
+              "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+              "REDIS_PASSWORD=${REDIS_PASSWORD}" \
+              "GRAFANA_PASSWORD=${GRAFANA_PASSWORD}" \
+              "GF_GITHUB_CLIENT_ID=${GF_GITHUB_CLIENT_ID}" \
+              "GF_GITHUB_CLIENT_SECRET=${GF_GITHUB_CLIENT_SECRET}" \
+              "VPS_SLACK_ALERT_WEBHOOK=${VPS_SLACK_ALERT_WEBHOOK}" \
+              "TRAEFIK_DASHBOARD_AUTH=$(echo "${TRAEFIK_DASHBOARD_AUTH}" | sed 's/\$/\$\$/g')" \
+              "R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}" \
+              "R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}" \
+              "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}" \
+              > .env
+            chmod 600 .env
+
+            # Ensure bootstrap has run (idempotent)
+            mkdir -p data/postgres data/redis data/qdrant data/vault traefik data/prometheus data/grafana
+            if [ ! -f traefik/acme.json ]; then
+              touch traefik/acme.json
+              chmod 600 traefik/acme.json
+            fi
+
+            # Deploy with production overlay
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+        env:
+          INFRA_DOMAIN: ${{ secrets.INFRA_DOMAIN }}
+          EMAIL: ${{ secrets.EMAIL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+          GF_GITHUB_CLIENT_ID: ${{ secrets.GF_GITHUB_CLIENT_ID }}
+          GF_GITHUB_CLIENT_SECRET: ${{ secrets.GF_GITHUB_CLIENT_SECRET }}
+          VPS_SLACK_ALERT_WEBHOOK: ${{ secrets.VPS_SLACK_ALERT_WEBHOOK }}
+          TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+
+  smoke-test:
+    name: Smoke tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Wait for services to stabilize
+        run: sleep 20
+
+      - name: Check Traefik
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://traefik.${{ secrets.INFRA_DOMAIN }}/ping" > /dev/null
+
+      - name: Check Portainer
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://portainer.${{ secrets.INFRA_DOMAIN }}/api/system/status" > /dev/null
+
+      - name: Check Qdrant
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://qdrant.${{ secrets.INFRA_DOMAIN }}/healthz" | grep -q 'healthz check passed'
+
+      - name: Check Vault
+        continue-on-error: true
+        run: |
+          curl -s --max-time 10 \
+            "https://vault.${{ secrets.INFRA_DOMAIN }}/v1/sys/health" | grep -q '"initialized"'
+
+      - name: Check Grafana
+        continue-on-error: true
+        run: |
+          curl -sf --max-time 10 \
+            "https://grafana.${{ secrets.INFRA_DOMAIN }}/api/health" | grep -q '"ok"'
+
+      - name: Check Prometheus
+        continue-on-error: true
+        run: |
+          curl -s --max-time 10 \
+            "https://prometheus.${{ secrets.INFRA_DOMAIN }}/-/healthy" | grep -q 'Healthy\|401'
+
+      - name: Slack notify success
+        if: success()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#00B32C",
+                  "text": "Deploy Succeeded\nBranch: `${{ github.ref_name }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }
+
+      - name: Slack notify failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#B3000C",
+                  "text": "Deploy Failed\nBranch: `${{ github.ref_name }}`\nAuthor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }

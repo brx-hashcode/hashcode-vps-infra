@@ -1,0 +1,5 @@
+.env
+traefik/acme.json
+data/
+docker-compose.override.yml
+DEPLOY.md
