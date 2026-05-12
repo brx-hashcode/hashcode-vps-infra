@@ -1,0 +1,7 @@
+{
+  "yaml.schemas": {
+    "": [
+      "grafana/provisioning/datasources/*.yml"
+    ]
+  }
+}
