@@ -12,6 +12,7 @@ volumes:
   vault_data:
   prometheus_data:
   grafana_data:
+  loki_data:
 
 
 services:
@@ -158,6 +159,30 @@ services:
     networks:
       - internal
       - public
+
+  loki:
+    image: grafana/loki:3.4
+    container_name: loki
+    restart: always
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    networks:
+      - internal
+
+  promtail:
+    image: grafana/promtail:3.4
+    container_name: promtail
+    restart: always
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - internal
 
   vault:
     image: hashicorp/vault:latest
