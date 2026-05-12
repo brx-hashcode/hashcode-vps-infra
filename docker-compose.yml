@@ -87,11 +87,6 @@ services:
       - ./data/qdrant:/qdrant/storage
     networks:
       - internal
-      - public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hashcode-public"
-      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
 
   portainer:
