@@ -37,6 +37,12 @@ notify_slack() {
 cleanup() { rm -rf "$BACKUP_DIR"; }
 trap cleanup EXIT
 
+on_error() {
+  notify_slack "#B3000C" "❌ *VPS Backup Failed* — ${TIMESTAMP}\nCheck: /var/log/hashcode-backup.log"
+  exit 1
+}
+trap on_error ERR
+
 mkdir -p "$BACKUP_DIR"
 
 # 1. Postgres dump

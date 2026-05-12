@@ -21,7 +21,7 @@ EOF
 chmod 600 /etc/hashcode-backup.env
 
 # Install cron job — runs daily at 2:00 AM
-CRON_JOB="0 2 * * * source /etc/hashcode-backup.env && bash /home/brx/hashcode-vps-infra/scripts/backup.sh >> /var/log/hashcode-backup.log 2>&1"
+CRON_JOB="0 2 * * * bash -c 'source /etc/hashcode-backup.env && bash /home/brx/hashcode-vps-infra/scripts/backup.sh' >> /var/log/hashcode-backup.log 2>&1"
 { crontab -l 2>/dev/null | grep -v 'backup.sh'; echo "$CRON_JOB"; } | crontab -
 
 echo "============================================"
