@@ -35,6 +35,8 @@ services:
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
 
   qdrant:
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
@@ -42,6 +44,8 @@ services:
       - "traefik.http.routers.qdrant.entrypoints=websecure"
       - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+      - "traefik.http.routers.qdrant.middlewares=qdrant-auth"
+      - "traefik.http.middlewares.qdrant-auth.basicauth.users=${QDRANT_DASHBOARD_AUTH}"
 
   portainer:
     labels:
