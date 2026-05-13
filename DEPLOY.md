@@ -127,3 +127,58 @@ On first access, Portainer prompts you to create an admin account.
 ```bash
 docker compose restart portainer
 ```
+
+---
+
+## Mailcow — email server
+
+Mailcow runs as an isolated Docker stack on the same VPS, separate from the main infra compose.
+
+### Install
+
+```bash
+# Clone into /opt/mailcow
+cd /opt
+git clone https://github.com/mailcow/mailcow-dockerized mailcow
+cd mailcow
+
+# Generate config
+MAILCOW_HOSTNAME=mail.hashcode.digital ./generate_config.sh
+```
+
+Edit `mailcow.conf` before starting:
+
+```ini
+MAILCOW_HOSTNAME=mail.hashcode.digital
+MAILCOW_TZ=Africa/Brazzaville
+HTTP_PORT=8080
+HTTPS_PORT=8443
+```
+
+Start the stack:
+
+```bash
+docker compose up -d
+```
+
+### Post-install (admin UI at https://mail.hashcode.digital:8443)
+
+Default credentials: **admin / moohoo** — change on first login.
+
+1. **Add domain**: Configuration → Domains → Add domain → `rabotka.work`
+2. **Create mailbox**: E-Mail → Mailboxes → Add mailbox → `noreply@rabotka.work`
+3. **Retrieve DKIM key**: Configuration → Domains → DKIM → copy the TXT record value into Cloudflare (see `MAILCOW_DNS.md`)
+
+### Verify
+
+```bash
+# Admin UI responds
+curl -I https://mail.hashcode.digital:8443
+
+# DNS checks
+dig MX rabotka.work
+dig TXT rabotka.work
+dig TXT _dmarc.rabotka.work
+```
+
+Use [mxtoolbox.com](https://mxtoolbox.com) to verify MX, SPF, DKIM, and DMARC after DNS propagates.
