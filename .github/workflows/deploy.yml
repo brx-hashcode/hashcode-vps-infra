@@ -67,8 +67,8 @@ jobs:
 
             # Move into the repo (so compose paths work).
             cd ~/hashcode-vps-infra
-            git fetch origin develop
-            git reset --hard origin/develop
+            git fetch origin main
+            git reset --hard origin/main
 
             # Write .env from GitHub Secrets (passed as environment variables).
             printf '%s\n' \
@@ -98,6 +98,14 @@ jobs:
             # Deploy with production overlay
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Start Mailcow if it is installed (idempotent — skipped if not yet set up)
+            if [ -f /opt/mailcow/docker-compose.yml ]; then
+              cd /opt/mailcow
+              docker compose pull --quiet
+              docker compose up -d --remove-orphans
+              cd ~/hashcode-vps-infra
+            fi
         env:
           INFRA_DOMAIN: ${{ secrets.INFRA_DOMAIN }}
           EMAIL: ${{ secrets.EMAIL }}
