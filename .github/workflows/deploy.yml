@@ -6,12 +6,10 @@ env:
 on:
   push:
     branches:
-      - develop
       - main
   pull_request:
     branches:
       - main
-      - develop
 
 jobs:
   validate:
