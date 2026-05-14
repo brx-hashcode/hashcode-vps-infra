@@ -61,6 +61,16 @@ services:
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
+  qdrant:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hashcode-public"
+      - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
+      - "traefik.http.routers.qdrant.entrypoints=websecure"
+      - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.qdrant.middlewares=traefik-auth"
+      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+
   prometheus:
     labels:
       - "traefik.enable=true"
