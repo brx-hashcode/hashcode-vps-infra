@@ -93,7 +93,7 @@ services:
 
 
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ce:2.39.3
     container_name: portainer
     restart: always
     volumes:
