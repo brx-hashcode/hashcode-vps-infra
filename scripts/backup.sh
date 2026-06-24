@@ -12,7 +12,10 @@ BACKUP_DIR="/tmp/hashcode-backup-${TIMESTAMP}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUCKET="hashcode-backups"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-MIN_DB_DUMP_BYTES=200000   # a real per-DB dump (custom format) must exceed this
+# Low per-DB floor: catches truly empty/failed dumps (those are only a few
+# hundred bytes) while letting small-but-real databases pass. A genuinely
+# populated DB compresses to far more than this even when small.
+MIN_DB_DUMP_BYTES=10000   # 10KB
 
 # Load R2 credentials + POSTGRES_USER from .env
 set -a; source "${REPO_DIR}/.env"; set +a
@@ -85,19 +88,15 @@ docker exec postgres pg_dumpall -U "$PG_SUPER" --globals-only \
 DBS=$(docker exec postgres psql -U "$PG_SUPER" -tAc \
   "SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'postgres';")
 if [ -z "$DBS" ]; then log "FATAL: no databases returned by psql"; exit 1; fi
-LARGEST_DB_DUMP=""
 for db in $DBS; do
   log "  dumping ${db}..."
   out="${BACKUP_DIR}/pg_${db}_${TIMESTAMP}.dump"
   docker exec postgres pg_dump -U "$PG_SUPER" -Fc "$db" > "$out"
   gzip "$out"
-  # track the largest dump so we can assert at least one DB has real data
-  if [ -z "$LARGEST_DB_DUMP" ] || \
-     [ "$(stat -c%s "${out}.gz")" -gt "$(stat -c%s "$LARGEST_DB_DUMP")" ]; then
-    LARGEST_DB_DUMP="${out}.gz"
-  fi
+  # Assert every database dump cleared the empty floor (an auth/permission
+  # failure or empty DB would be only a few hundred bytes).
+  require_min "${out}.gz" "$MIN_DB_DUMP_BYTES"
 done
-require_min "$LARGEST_DB_DUMP" "$MIN_DB_DUMP_BYTES"
 
 # ── 2. Grafana volume (live) ─────────────────────────────────────────────────
 CURRENT_STEP="grafana"
