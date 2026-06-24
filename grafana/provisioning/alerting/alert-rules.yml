@@ -6,12 +6,12 @@ groups:
     folder: Alerts
     interval: 1m
     rules:
+      # ── CPU ──────────────────────────────────────────────────────────────
       - uid: cpu-high
         title: CPU High
         condition: C
         data:
           - refId: A
-            queryType: ''
             relativeTimeRange:
               from: 300
               to: 0
@@ -22,22 +22,47 @@ groups:
               maxDataPoints: 43200
               refId: A
           - refId: C
-            queryType: ''
-            relativeTimeRange:
-              from: 0
-              to: 0
             datasourceUid: __expr__
             model:
               conditions:
-                - evaluator:
-                    params: [90]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
+                - evaluator: { params: [90], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          summary: "CPU above 90% for 10m on {{ $labels.instance }}"
+          description: "CPU usage is {{ printf \"%.1f\" $values.A.Value }}% (warning threshold 90%) on {{ $labels.instance }}. Check `docker stats` / `top` for a runaway process. If sustained, consider capping container CPU or scaling the VPS."
+        labels:
+          severity: warning
+
+      - uid: cpu-critical
+        title: CPU Critical
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [95], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
                   type: query
               refId: C
               type: classic_conditions
@@ -45,17 +70,17 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "CPU usage is above 90% for 5 minutes"
-          description: "The VPS CPU has been under heavy load (>90%) for more than 5 minutes. Check for runaway processes or scale up resources."
+          summary: "CPU above 95% for 5m on {{ $labels.instance }}"
+          description: "CPU usage is {{ printf \"%.1f\" $values.A.Value }}% (critical threshold 95%) on {{ $labels.instance }}. The host is saturated — investigate immediately (`docker stats`, `top`)."
         labels:
-          severity: warning
+          severity: critical
 
+      # ── RAM ──────────────────────────────────────────────────────────────
       - uid: ram-high
         title: RAM High
         condition: C
         data:
           - refId: A
-            queryType: ''
             relativeTimeRange:
               from: 300
               to: 0
@@ -66,22 +91,47 @@ groups:
               maxDataPoints: 43200
               refId: A
           - refId: C
-            queryType: ''
-            relativeTimeRange:
-              from: 0
-              to: 0
             datasourceUid: __expr__
             model:
               conditions:
-                - evaluator:
-                    params: [90]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
+                - evaluator: { params: [90], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          summary: "RAM above 90% for 10m on {{ $labels.instance }}"
+          description: "Memory usage is {{ printf \"%.1f\" $values.A.Value }}% (warning threshold 90%) on {{ $labels.instance }}. Note: Linux counts cache as used — check `free -h` (available, not used). If genuinely high, restart heavy containers or add swap/RAM."
+        labels:
+          severity: warning
+
+      - uid: ram-critical
+        title: RAM Critical
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: { params: [95], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
                   type: query
               refId: C
               type: classic_conditions
@@ -89,17 +139,17 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "RAM usage is above 90% for 5 minutes"
-          description: "The VPS is running low on memory (>90% used). Consider restarting heavy containers or increasing swap/RAM."
+          summary: "RAM above 95% for 5m on {{ $labels.instance }}"
+          description: "Memory usage is {{ printf \"%.1f\" $values.A.Value }}% (critical threshold 95%) on {{ $labels.instance }}. OOM-kill risk — free memory now (`docker stats` to find the offender) or add swap/RAM."
         labels:
-          severity: warning
+          severity: critical
 
+      # ── Disk ─────────────────────────────────────────────────────────────
       - uid: disk-high
         title: Disk Full
         condition: C
         data:
           - refId: A
-            queryType: ''
             relativeTimeRange:
               from: 300
               to: 0
@@ -110,22 +160,13 @@ groups:
               maxDataPoints: 43200
               refId: A
           - refId: C
-            queryType: ''
-            relativeTimeRange:
-              from: 0
-              to: 0
             datasourceUid: __expr__
             model:
               conditions:
-                - evaluator:
-                    params: [90]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
+                - evaluator: { params: [90], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
                   type: query
               refId: C
               type: classic_conditions
@@ -133,7 +174,7 @@ groups:
         execErrState: Alerting
         for: 5m
         annotations:
-          summary: "Disk usage is above 90%"
-          description: "The VPS root disk is almost full (>90% used). Clean up Docker images, logs, or old data before the disk fills up completely."
+          summary: "Disk above 90% on {{ $labels.instance }}"
+          description: "Root disk is {{ printf \"%.1f\" $values.A.Value }}% full on {{ $labels.instance }}. Clean up Docker (`docker system prune`), logs, or old data before it fills completely."
         labels:
           severity: critical
