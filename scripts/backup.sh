@@ -12,10 +12,15 @@ BACKUP_DIR="/tmp/hashcode-backup-${TIMESTAMP}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUCKET="hashcode-backups"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-# Low per-DB floor: catches truly empty/failed dumps (those are only a few
-# hundred bytes) while letting small-but-real databases pass. A genuinely
-# populated DB compresses to far more than this even when small.
-MIN_DB_DUMP_BYTES=10000   # 10KB
+# Databases that MUST contain data — the backup fails loudly if any of these
+# dumps comes back empty (auth failure, data loss, etc.). Other databases
+# (e.g. the empty maintenance DB named after POSTGRES_USER) are still backed
+# up but not size-asserted. Override via .env if the set changes.
+REQUIRED_DBS="${REQUIRED_DBS:-rabotka_prod}"
+# 10KB floor: an empty / globals-only / failed dump is only a few hundred
+# bytes, so this reliably catches breakage while staying well below any real
+# database dump (the smallest real DB here compresses to ~117KB).
+MIN_DB_DUMP_BYTES="${MIN_DB_DUMP_BYTES:-10000}"
 
 # Load R2 credentials + POSTGRES_USER from .env
 set -a; source "${REPO_DIR}/.env"; set +a
@@ -88,14 +93,24 @@ docker exec postgres pg_dumpall -U "$PG_SUPER" --globals-only \
 DBS=$(docker exec postgres psql -U "$PG_SUPER" -tAc \
   "SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'postgres';")
 if [ -z "$DBS" ]; then log "FATAL: no databases returned by psql"; exit 1; fi
+# Dump every database. We do NOT assert a floor per-DB because some databases
+# are legitimately empty (e.g. the maintenance DB named after POSTGRES_USER).
 for db in $DBS; do
   log "  dumping ${db}..."
   out="${BACKUP_DIR}/pg_${db}_${TIMESTAMP}.dump"
   docker exec postgres pg_dump -U "$PG_SUPER" -Fc "$db" > "$out"
   gzip "$out"
-  # Assert every database dump cleared the empty floor (an auth/permission
-  # failure or empty DB would be only a few hundred bytes).
-  require_min "${out}.gz" "$MIN_DB_DUMP_BYTES"
+  log "  ok: $(basename "${out}.gz") = $(numfmt --to=iec "$(stat -c%s "${out}.gz")")"
+done
+# Safety floor: assert the databases that MUST have data are non-empty.
+# An auth/permission failure or accidental data loss would make these tiny.
+for required_db in $REQUIRED_DBS; do
+  f="${BACKUP_DIR}/pg_${required_db}_${TIMESTAMP}.dump.gz"
+  if [ -f "$f" ]; then
+    require_min "$f" "$MIN_DB_DUMP_BYTES"
+  else
+    log "FATAL: expected database '${required_db}' was not found/dumped"; exit 1
+  fi
 done
 
 # ── 2. Grafana volume (live) ─────────────────────────────────────────────────
