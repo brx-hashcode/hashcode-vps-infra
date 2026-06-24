@@ -21,6 +21,8 @@ REQUIRED_DBS="${REQUIRED_DBS:-rabotka_prod}"
 # bytes, so this reliably catches breakage while staying well below any real
 # database dump (the smallest real DB here compresses to ~117KB).
 MIN_DB_DUMP_BYTES="${MIN_DB_DUMP_BYTES:-10000}"
+# How long to keep backups in R2 before pruning (overridable via .env).
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
 
 # Load R2 credentials + POSTGRES_USER from .env
 set -a; source "${REPO_DIR}/.env"; set +a
@@ -128,7 +130,15 @@ CURRENT_STEP="vault"
 log "Backing up Vault..."
 backup_container_path vault /vault/data "vault_${TIMESTAMP}.tar.gz"
 
-# ── 5. Upload to R2 + verify size landed ─────────────────────────────────────
+# ── 5. Redis — flush to disk, then capture the live volume ───────────────────
+CURRENT_STEP="redis"
+log "Backing up Redis..."
+# SAVE is synchronous: it writes a fresh dump.rdb before we tar /data, so the
+# snapshot is point-in-time consistent. -a uses the password from .env.
+docker exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning SAVE' >/dev/null
+backup_container_path redis /data "redis_${TIMESTAMP}.tar.gz"
+
+# ── 6. Upload to R2 + verify size landed ─────────────────────────────────────
 CURRENT_STEP="upload"
 log "Uploading to R2..."
 rclone copy "$BACKUP_DIR" "r2:${BUCKET}/${TIMESTAMP}/" --s3-no-check-bucket
@@ -140,12 +150,14 @@ if [ "${REMOTE_BYTES:-0}" -lt "$LOCAL_BYTES" ]; then
   log "FATAL: R2 upload incomplete (remote ${REMOTE_BYTES} < local ${LOCAL_BYTES})"; exit 1
 fi
 
-# ── 6. Prune backups older than 30 days ──────────────────────────────────────
+# ── 7. Prune backups older than the retention window ─────────────────────────
 CURRENT_STEP="prune"
-log "Pruning old backups..."
-rclone delete "r2:${BUCKET}" --min-age 30d --rmdirs
+log "Pruning backups older than ${RETENTION_DAYS} days..."
+rclone delete "r2:${BUCKET}" --min-age "${RETENTION_DAYS}d" --rmdirs
+# delete also removes files but can leave empty dated dirs behind; sweep them.
+rclone rmdirs "r2:${BUCKET}" --leave-root 2>/dev/null || true
 
-# ── 7. Report with per-file breakdown ────────────────────────────────────────
+# ── 8. Report with per-file breakdown ────────────────────────────────────────
 CURRENT_STEP="report"
 TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
 BREAKDOWN=$(cd "$BACKUP_DIR" && du -h ./* | sort -rh | awk '{printf "%s  %s\\n", $1, $2}')
