@@ -95,7 +95,11 @@ services:
 
 
   portainer:
-    image: portainer/portainer-ce:latest
+    # Pinned, not :latest — Portainer migrates its data volume on upgrade and
+    # will not start on an older image afterwards, so the version has to be a
+    # decision rather than whatever a deploy happens to pull. 2.39.6 is the
+    # current LTS; :latest tracks that same LTS channel, not the newer 2.44 STS.
+    image: portainer/portainer-ce:2.39.6
     container_name: portainer
     restart: always
     volumes:
