@@ -67,7 +67,25 @@ jobs:
 
             # Move into the repo (so compose paths work).
             cd ~/hashcode-vps-infra
-            git pull origin develop
+
+            # `fetch` + `reset --hard`, never `git pull`.
+            #
+            # This checkout is a deployment artifact, not a workspace: it has to
+            # end up identical to origin/develop whatever state it drifted into.
+            # `git pull` merges, and a merge can conflict — which is what took
+            # the deploy down on 2026-08-20, when a divergent local history on
+            # the box produced add/add conflicts across ten files. `set -e` then
+            # aborted the script before a single container was touched, and the
+            # deploy could not run again until someone SSH'd in by hand.
+            #
+            # `reset --hard` cannot conflict, and it is idempotent, so a rerun is
+            # always safe. It only rewrites TRACKED files: .env, traefik/acme.json
+            # and the bind-mounted data/ directories — Postgres, Redis, Qdrant and
+            # Vault — are untracked and are left untouched.
+            #
+            # Deliberately no `git clean`: it would delete precisely those.
+            git fetch origin develop
+            git reset --hard FETCH_HEAD
 
             # Write .env from GitHub Secrets (passed as environment variables).
             printf '%s\n' \
