@@ -95,11 +95,27 @@ services:
 
 
   portainer:
-    # Pinned, not :latest — Portainer migrates its data volume on upgrade and
-    # will not start on an older image afterwards, so the version has to be a
-    # decision rather than whatever a deploy happens to pull. 2.39.6 is the
-    # current LTS; :latest tracks that same LTS channel, not the newer 2.44 STS.
-    image: portainer/portainer-ce:2.39.6
+    # Business Edition, not Community — and that is not a typo.
+    #
+    # Someone activated the free Business licence from inside the Portainer UI.
+    # Portainer's in-app updater recreated its own container on the `-ee` image
+    # and flagged `portainer_data` as a BE database, entirely outside compose.
+    # This file went on claiming `-ce`, and nothing recreated the container for
+    # long enough that the lie stayed invisible — until the next `up -d`, when
+    # the CE binary refused to open a BE database and crash-looped:
+    #
+    #   FTL the Portainer database is set for Portainer Business Edition
+    #
+    # So this line records what is actually running. Do NOT "fix" it back to
+    # `-ce`: that reproduces the outage. Moving to CE is possible, but it takes
+    # a deliberate `--rollback-to-ce` on the volume first, and it reverts the
+    # configuration to how it was when BE was activated.
+    #
+    # Pinned rather than :latest because Portainer migrates its data volume on
+    # upgrade and will not start on an older image afterwards, so the version
+    # has to be a decision rather than whatever a deploy happens to pull.
+    # 2.39.6 is the current LTS; the newer 2.44 is short-term support.
+    image: portainer/portainer-ee:2.39.6
     container_name: portainer
     restart: always
     volumes:
