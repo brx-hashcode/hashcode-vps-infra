@@ -15,10 +15,62 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.email=${EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      # DNS-01, not HTTP-01 — and this is the fix for the 2026-08-22 outage in
+      # which all fourteen certificates expired.
+      #
+      # Every domain here is PROXIED THROUGH CLOUDFLARE. Let's Encrypt therefore
+      # never reached this box: it resolved the names to Cloudflare's edge
+      # (2606:4700::/32 in the logs) and got Cloudflare's answer to the
+      # challenge, not Traefik's. The evidence, straight from the failures:
+      #
+      #   qdrant / vault / portainer / api.rabotka.work → 404
+      #   traefik / prometheus                          → 401 (their basicauth)
+      #   rabotka.work / admin.rabotka.work             → the SPA's index.html
+      #   www.rabotka.work                              → followed a redirect to
+      #                                                   https://rabotka.work
+      #
+      # The `web` entrypoint carries a global HTTP→HTTPS redirect and Cloudflare
+      # adds its own, so the challenge always ended up on :443, where no ACME
+      # router exists — the request fell through to the application.
+      #
+      # TLS-ALPN-01 would NOT have helped: Cloudflare terminates TLS, so an
+      # ALPN challenge cannot reach the origin either. Any challenge that
+      # depends on an inbound connection is defeated by a proxy. DNS-01 answers
+      # in the zone instead, so the proxy is irrelevant — and it is the only
+      # method that could also issue wildcards later.
+      #
+      # CF_DNS_API_TOKEN is a scoped Cloudflare token (Zone:DNS:Edit on these
+      # zones only). Never the Global API Key: that one can do anything to the
+      # account, and it would sit in this container's environment.
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      # Resolve against public resolvers rather than the host's. The check is
+      # for propagation of OUR TXT record, and a resolver that caches the
+      # negative answer stalls every issuance behind its own TTL.
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--api.dashboard=true"
       - "--ping=true"
       - "--ping.entrypoint=websecure"
+      # Metrics, and the reason they exist: on 2026-08-22 all fourteen
+      # certificates were found expired, some for over two weeks — including
+      # api.rabotka.work. Nothing had reported it. Prometheus and Grafana were
+      # already running on this box; Traefik simply was not exposing anything
+      # for them to scrape, so the one signal that mattered did not exist.
+      #
+      # `traefik_tls_certs_not_after` is the gauge that closes that gap; the
+      # alert rule lives in grafana/provisioning/alerting/alert-rules.yml.
+      #
+      # The metrics entrypoint is deliberately NOT routed through a Traefik
+      # router: it is reachable on the internal Docker network by Prometheus
+      # and nowhere else, because it would otherwise publish the full traffic
+      # profile of every service to anyone who found the URL.
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entrypoint=metrics"
+      - "--entrypoints.metrics.address=:8082"
+    environment:
+      # Read by lego (Traefik's ACME library) for the DNS-01 challenge above.
+      # Scoped token, Zone:DNS:Edit — see the comment on `dnschallenge`.
+      - "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/acme.json:/acme.json"

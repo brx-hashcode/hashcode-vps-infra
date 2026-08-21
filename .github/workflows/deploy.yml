@@ -91,6 +91,7 @@ jobs:
             printf '%s\n' \
               "INFRA_DOMAIN=hashcode.digital" \
               "EMAIL=${EMAIL}" \
+              "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}" \
               "POSTGRES_USER=${POSTGRES_USER}" \
               "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
               "REDIS_PASSWORD=${REDIS_PASSWORD}" \
@@ -118,6 +119,10 @@ jobs:
         env:
           INFRA_DOMAIN: ${{ secrets.INFRA_DOMAIN }}
           EMAIL: ${{ secrets.EMAIL }}
+          # Cloudflare token for the ACME DNS-01 challenge. Scoped to
+          # Zone:DNS:Edit on the rabotka/hashcode zones — never the Global API
+          # Key, which can do anything to the account.
+          CF_DNS_API_TOKEN: ${{ secrets.CF_DNS_API_TOKEN }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}

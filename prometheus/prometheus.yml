@@ -10,3 +10,18 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  # Traefik. Scraped for one metric above all: `traefik_tls_certs_not_after`,
+  # the expiry timestamp of every certificate it serves.
+  #
+  # Added after all fourteen certificates were found expired on 2026-08-22 —
+  # some for more than two weeks, api.rabotka.work among them — with nothing
+  # anywhere reporting it. This box already ran Prometheus and Grafana; Traefik
+  # was simply not exposing anything to scrape.
+  #
+  # Reached over the shared `hashcode-public` network on the internal metrics
+  # entrypoint, which has no Traefik router of its own and is therefore not
+  # published to the internet.
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8082"]
