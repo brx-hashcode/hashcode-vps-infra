@@ -69,8 +69,20 @@ services:
       - "--entrypoints.metrics.address=:8082"
     environment:
       # Read by lego (Traefik's ACME library) for the DNS-01 challenge above.
-      # Scoped token, Zone:DNS:Edit — see the comment on `dnschallenge`.
+      #
+      # BOTH variables, deliberately, and both holding the SAME token. lego
+      # splits the work in two — one credential to resolve a domain to its Zone
+      # ID, another to write the TXT record — and refuses to start if either is
+      # missing:
+      #
+      #   cannot get ACME client cloudflare: some credentials information are
+      #   missing: CLOUDFLARE_DNS_API_TOKEN,CLOUDFLARE_ZONE_API_TOKEN
+      #
+      # Setting only CF_DNS_API_TOKEN is not enough, however broad that token
+      # is. The single token here carries Zone:Read AND DNS:Edit, which is what
+      # makes one value valid for both roles.
       - "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}"
+      - "CF_ZONE_API_TOKEN=${CF_DNS_API_TOKEN}"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/acme.json:/acme.json"

@@ -61,7 +61,15 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: INFRA_DOMAIN,EMAIL,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ACCOUNT_ID
+          # Two lists, and BOTH must name a variable for it to arrive.
+          #
+          # `env:` below puts it in the runner's environment; this `envs:` is
+          # what appleboy/ssh-action actually forwards into the remote shell.
+          # A variable present in one and absent from the other reaches the VPS
+          # as an EMPTY STRING — no error, no warning. That is how the first
+          # DNS-01 deploy wrote `CF_DNS_API_TOKEN=` into .env and Traefik came
+          # up reporting missing Cloudflare credentials.
+          envs: INFRA_DOMAIN,EMAIL,CF_DNS_API_TOKEN,POSTGRES_USER,POSTGRES_PASSWORD,REDIS_PASSWORD,TRAEFIK_DASHBOARD_AUTH,GRAFANA_PASSWORD,VPS_SLACK_ALERT_WEBHOOK,GF_GITHUB_CLIENT_ID,GF_GITHUB_CLIENT_SECRET,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_ACCOUNT_ID
           script: |
             set -e
 
@@ -105,6 +113,24 @@ jobs:
               "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}" \
               > .env
             chmod 600 .env
+
+            # Fail loudly rather than bring up a Traefik that cannot renew
+            # anything. The first DNS-01 deploy wrote `CF_DNS_API_TOKEN=` here
+            # — the secret existed, but was missing from the action's `envs:`
+            # list — and everything reported success. The certificates would
+            # simply have expired again in ninety days.
+            #
+            # A deployment that cannot obtain certificates is a failed
+            # deployment, and should say so at the point the value is written,
+            # not in a container log nobody reads.
+            if ! grep -q '^CF_DNS_API_TOKEN=..*' .env; then
+              echo "FATAL: CF_DNS_API_TOKEN is empty in .env — Traefik cannot"
+              echo "       run the ACME DNS-01 challenge and no certificate"
+              echo "       will ever renew."
+              echo "  Check: the repository secret exists, AND CF_DNS_API_TOKEN"
+              echo "         is listed in this step's \`envs:\` input."
+              exit 1
+            fi
 
             # Ensure bootstrap has run (idempotent)
             mkdir -p data/postgres data/redis data/qdrant data/vault traefik data/prometheus data/grafana
