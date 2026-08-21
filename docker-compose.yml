@@ -89,19 +89,36 @@ services:
     networks:
       - internal
 
+  # Reachable ONLY from the internal network. Not published, not routed.
+  #
+  # On 2026-08-22 this was on the `public` network with a Traefik router and
+  # NO api key, so `curl https://qdrant.hashcode.digital/collections` from
+  # anywhere on the internet listed every collection — including
+  # rabotka_prod_workers, rabotka_prod_employers and rabotka_prod_user_interests
+  # — and the same open door accepted writes and DELETEs.
+  #
+  # Qdrant enforces nothing unless QDRANT__SERVICE__API_KEY is set. The backend
+  # had been sending QDRANT_API_KEY all along; the server simply never checked
+  # it, so the key gave a false sense of being closed.
+  #
+  # Two locks now, because either alone is one mistake away from the same
+  # outcome: the key means a leaked network position is not enough, and the
+  # missing route means a leaked key is not enough.
+  #
+  # For the dashboard, tunnel instead of publishing:
+  #   ssh -L 6333:localhost:6333 <user>@<vps>   → http://localhost:6333/dashboard
   qdrant:
     image: qdrant/qdrant
     container_name: qdrant
     restart: always
+    environment:
+      # Server-side enforcement. Must match QDRANT_API_KEY in the backend's
+      # Vault entry, which is the value its client already sends.
+      - "QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}"
     volumes:
       - ./data/qdrant:/qdrant/storage
     networks:
       - internal
-      - public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hashcode-public"
-      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
 
 
   portainer:
