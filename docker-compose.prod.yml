@@ -96,14 +96,19 @@ services:
       - "traefik.http.routers.traefik.middlewares=traefik-auth"
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
 
-  qdrant:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=hashcode-public"
-      - "traefik.http.routers.qdrant.rule=Host(`qdrant.${INFRA_DOMAIN}`)"
-      - "traefik.http.routers.qdrant.entrypoints=websecure"
-      - "traefik.http.routers.qdrant.tls.certresolver=letsencrypt"
-      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+  # qdrant has NO router here, deliberately.
+  #
+  # It used to be published at qdrant.${INFRA_DOMAIN} with no api key, so the
+  # whole vector store — production worker and employer embeddings included —
+  # was readable, writable and deletable by anyone who knew the hostname. See
+  # the comment on the service in docker-compose.yml.
+  #
+  # Nothing outside this box needs to reach it: the backend talks to
+  # http://qdrant:6333 over the internal network. For the dashboard, tunnel:
+  #   ssh -L 6333:localhost:6333 <user>@<vps>
+  #
+  # If it ever has to be published again, it needs the api key AND a basicauth
+  # middleware, the way traefik and prometheus are protected below.
 
   portainer:
     labels:
