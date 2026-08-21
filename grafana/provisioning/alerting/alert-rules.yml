@@ -153,11 +153,14 @@ groups:
       # this leaves nine days of failed attempts before anyone is disturbed, and
       # three weeks to act before anything actually breaks.
       #
-      # `noDataState: Alerting`, unlike the rules above. No data here means
-      # Traefik stopped exposing metrics or Prometheus stopped scraping it —
-      # which is exactly the blind spot that let this happen, so it must be
-      # loud. A silent monitor is worse than no monitor: it is a monitor you
-      # believe.
+      # `noDataState: Alerting`, unlike the rules above, and it carries real
+      # weight here because the query filters to live certificates. No data
+      # means one of three things, and every one of them is an emergency:
+      # Traefik stopped exposing metrics, Prometheus stopped scraping, or NO
+      # CERTIFICATE IS VALID ANY MORE. That last case is the incident itself.
+      #
+      # It is also the blind spot that allowed all of this — a silent monitor
+      # is worse than no monitor, because it is a monitor you believe.
       - uid: tls-cert-expiring
         title: TLS Certificate Expiring
         condition: C
@@ -169,7 +172,24 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: min(traefik_tls_certs_not_after - time()) / 86400
+              # `> 0` filters the series BEFORE the min, and it is load-bearing.
+              #
+              # Traefik never removes a renewed certificate's series from its
+              # metrics: go-kit keeps every label set and offers no delete, so
+              # old serials accumulate forever (traefik/traefik#8606). A bare
+              # `min()` therefore locks onto a certificate that was replaced
+              # months ago and the alert fires permanently — which is exactly
+              # the alert fatigue this rule was written to avoid.
+              #
+              # The upstream fix (traefik/traefik#11659) sets stale entries to
+              # 0 rather than dropping them, so `0 - time()` is hugely negative
+              # and a bare `min()` breaks WORSE after that fix, not better.
+              # Filtering to live certificates is correct under both behaviours.
+              #
+              # Filtering cannot hide a real expiry: a certificate crossing zero
+              # leaves the series, the result goes empty, and `noDataState:
+              # Alerting` below fires on that.
+              expr: min(traefik_tls_certs_not_after - time() > 0) / 86400
               intervalMs: 1000
               maxDataPoints: 43200
               refId: A
