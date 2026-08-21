@@ -17,7 +17,17 @@ volumes:
 services:
 
   traefik:
-    image: traefik:v3
+    # Pinned, like Portainer was after `:latest` bit us (see its comment below).
+    #
+    # `traefik:v3` is a floating tag: every `docker compose pull` in the deploy
+    # could move the running version without a single line changing in this
+    # repo. The box was on 3.7.11 with nobody having decided that. When all
+    # fourteen certificates were found expired on 2026-08-22, "did Traefik
+    # change under us?" was a question the repository could not answer — and an
+    # unanswerable question during an incident is its own cost.
+    #
+    # Bump deliberately, read the release notes for ACME changes when you do.
+    image: traefik:v3.7.11
     container_name: traefik
     restart: always
     command:

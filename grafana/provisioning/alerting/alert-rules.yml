@@ -137,3 +137,67 @@ groups:
           description: "The VPS root disk is almost full (>90% used). Clean up Docker images, logs, or old data before the disk fills up completely."
         labels:
           severity: critical
+
+      # The alert that did not exist on 2026-08-22, when all fourteen Let's
+      # Encrypt certificates were found expired — some for over two weeks,
+      # api.rabotka.work and admin.rabotka.work among them. Production served
+      # invalid TLS and nothing reported it. Renewals had been failing since
+      # early July; twenty-one days of warning would have caught the first one.
+      #
+      # Fires on the SOONEST expiry across every certificate Traefik serves,
+      # rather than one alert per certificate: they are renewed by one process,
+      # so they fail as a group, and fourteen simultaneous Slack messages teach
+      # people to mute the channel.
+      #
+      # Twenty-one days, not seven: Traefik attempts renewal at thirty days, so
+      # this leaves nine days of failed attempts before anyone is disturbed, and
+      # three weeks to act before anything actually breaks.
+      #
+      # `noDataState: Alerting`, unlike the rules above. No data here means
+      # Traefik stopped exposing metrics or Prometheus stopped scraping it —
+      # which is exactly the blind spot that let this happen, so it must be
+      # loud. A silent monitor is worse than no monitor: it is a monitor you
+      # believe.
+      - uid: tls-cert-expiring
+        title: TLS Certificate Expiring
+        condition: C
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: min(traefik_tls_certs_not_after - time()) / 86400
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [21]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 15m
+        annotations:
+          summary: "A TLS certificate expires in less than 21 days"
+          description: "Traefik reports at least one certificate expiring within 21 days, or has stopped reporting certificates at all. Renewal normally happens at 30 days, so this means renewal is already failing. Check `docker logs traefik | grep -i acme` for the reason — rate limit, unreachable HTTP-01 challenge, or acme.json not writable."
+        labels:
+          severity: critical
