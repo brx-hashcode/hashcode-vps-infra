@@ -141,7 +141,8 @@ services:
     # Pinned rather than :latest because Portainer migrates its data volume on
     # upgrade and will not start on an older image afterwards, so the version
     # has to be a decision rather than whatever a deploy happens to pull.
-    # 2.39.6 is the current LTS; the newer 2.44 is short-term support.
+    # 2.39.8 is on the 2.39 LTS line. 2.45 is also LTS now, but moving to it is
+    # a separate, one-way data migration — do it deliberately, not in passing.
     #
     # Built locally rather than pulled: portainer/Dockerfile strips a dead
     # googlecode.com <script> that made Chrome flag the host as dangerous.
@@ -150,8 +151,8 @@ services:
     build:
       context: ./portainer
       args:
-        PORTAINER_VERSION: 2.39.6
-    image: hashcode/portainer-ee:2.39.6-noshim
+        PORTAINER_VERSION: 2.39.8
+    image: hashcode/portainer-ee:2.39.8-noshim
     pull_policy: build
     container_name: portainer
     restart: always
