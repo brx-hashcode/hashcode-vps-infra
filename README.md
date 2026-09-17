@@ -317,6 +317,8 @@ Push / PR → GitHub Actions → SSH into VPS → git pull → write .env → do
 
 Portainer gives you a live view of all running containers, logs, and resource usage at `portainer.hashcode.digital`.
 
+> **Two logins:** `portainer.hashcode.digital` first asks for the same basic-auth user/password as the Traefik and Prometheus dashboards (`TRAEFIK_DASHBOARD_AUTH`), then shows Portainer's own login. The extra login keeps Google's scanner away from the Portainer login page, which got `hashcode.digital` flagged as a "Dangerous site" in Chrome.
+
 > **Patched image:** Portainer is built from [`portainer/Dockerfile`](portainer/Dockerfile), which removes a dead `googlecode.com` script tag that made Chrome flag the site as dangerous ([portainer#13118](https://github.com/portainer/portainer/issues/13118)). To upgrade, bump both `PORTAINER_VERSION` and the image tag in `docker-compose.yml`.
 
 > **First-time Portainer setup:** On first access, Portainer will prompt you to create an admin account. Do this within 5 minutes of first boot — otherwise the container locks itself for security and needs a restart.

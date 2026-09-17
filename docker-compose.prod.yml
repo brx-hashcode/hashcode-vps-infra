@@ -110,6 +110,19 @@ services:
   # If it ever has to be published again, it needs the api key AND a basicauth
   # middleware, the way traefik and prometheus are protected below.
 
+  # portainer sits behind basicauth — not for the credentials, Portainer has
+  # its own login — but so nothing can see that login page.
+  #
+  # On 2026-09-12 Google Safe Browsing flagged all of hashcode.digital as
+  # deceptive, and Chrome put its red "Dangerous site" wall in front of every
+  # subdomain. A publicly crawlable login form for a well-known admin tool on
+  # an unknown domain is what that classifier looks for. Behind basicauth the
+  # scanner gets a bare 401 and there is no form left to judge.
+  #
+  # Portainer's UI authenticates with a cookie + X-CSRF-Token, never with an
+  # Authorization header, so the browser's cached basic credentials survive
+  # every API and websocket call. /api/system/status stays open on its own
+  # router: it is JSON with a version string, and the deploy smoke test uses it.
   portainer:
     labels:
       - "traefik.enable=true"
@@ -117,6 +130,11 @@ services:
       - "traefik.http.routers.portainer.rule=Host(`portainer.${INFRA_DOMAIN}`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portainer.middlewares=traefik-auth"
+      - "traefik.http.routers.portainer-status.rule=Host(`portainer.${INFRA_DOMAIN}`) && Path(`/api/system/status`)"
+      - "traefik.http.routers.portainer-status.entrypoints=websecure"
+      - "traefik.http.routers.portainer-status.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portainer-status.service=portainer"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
 
   vault:
