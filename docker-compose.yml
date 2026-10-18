@@ -141,8 +141,11 @@ services:
     # Pinned rather than :latest because Portainer migrates its data volume on
     # upgrade and will not start on an older image afterwards, so the version
     # has to be a decision rather than whatever a deploy happens to pull.
-    # 2.39.8 is on the 2.39 LTS line. 2.45 is also LTS now, but moving to it is
-    # a separate, one-way data migration — do it deliberately, not in passing.
+    # 2.45.2 (LTS). The data volume was migrated to it on 2026-10-08 by a
+    # `portainer-ee:latest` container (in-app updater), and the 2026-10-18
+    # deploy that put 2.39.8 back crash-looped on "database schema version does
+    # not align" — the migration is one-way. Never use the in-app updater: bump
+    # here, deliberately, and only forward.
     #
     # Built locally rather than pulled: portainer/Dockerfile strips a dead
     # googlecode.com <script> that made Chrome flag the host as dangerous.
@@ -151,8 +154,8 @@ services:
     build:
       context: ./portainer
       args:
-        PORTAINER_VERSION: 2.39.8
-    image: hashcode/portainer-ee:2.39.8-noshim
+        PORTAINER_VERSION: 2.45.2
+    image: hashcode/portainer-ee:2.45.2-noshim
     pull_policy: build
     container_name: portainer
     restart: always
