@@ -97,7 +97,11 @@ jobs:
             git reset --hard FETCH_HEAD
 
             # Write .env from GitHub Secrets (passed as environment variables).
+            # COMPOSE_FILE first: a bare `docker compose ...` on this box must
+            # never run the base file alone — that Traefik has no websecure
+            # entrypoint and no certificate resolver, and every site goes down.
             printf '%s\n' \
+              "COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml" \
               "INFRA_DOMAIN=hashcode.digital" \
               "EMAIL=${EMAIL}" \
               "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}" \

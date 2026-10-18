@@ -86,6 +86,24 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/acme.json:/acme.json"
+    # `traefik healthcheck` runs as a separate process and does not see the
+    # `command:` flags above, so it is told where ping lives: the websecure
+    # entrypoint. Without them it probes :8080, which nothing serves here.
+    # Here and not in the base file: only this file puts ping on websecure.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "traefik",
+          "healthcheck",
+          "--ping",
+          "--ping.entrypoint=websecure",
+          "--entrypoints.websecure.address=:443",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=hashcode-public"
