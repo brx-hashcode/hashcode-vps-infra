@@ -156,10 +156,17 @@ TRAEFIK_DASHBOARD_AUTH=admin:$apr1$...
 # Production (VPS — Linux)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# Local (Docker Desktop — Windows/macOS)
+# Local (Docker Desktop — Windows/macOS) — NEVER on the VPS
 docker compose up -d
 # docker-compose.override.yml is picked up automatically
 ```
+
+> **On the VPS, `.env` sets `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml`**
+> (written by the deploy workflow), so a bare `docker compose ...` there uses both
+> files. The base file alone starts Traefik without its `websecure` entrypoint and
+> certificate resolver, which takes every site down. Scripts still pass both `-f`
+> flags explicitly. Don't put `COMPOSE_FILE` in a local `.env`: it would stop
+> `docker-compose.override.yml` from being picked up.
 
 ---
 
@@ -182,7 +189,9 @@ hashcode-infra/
 │   ├── qdrant/
 │   └── vault/
 └── scripts/
-    └── setup.sh                # One-time server bootstrap
+    ├── setup.sh                # One-time server bootstrap
+    ├── hashcode-stack.service  # systemd unit: stack up + check after every boot
+    └── post-boot-check.sh      # Traefik/ports, containers, public hosts → Slack
 ```
 
 ---
@@ -228,7 +237,7 @@ docker compose up -d
 ## Common Commands
 
 ```bash
-# Start (local)
+# Start (local only — on the VPS, always pass both files)
 docker compose up -d
 
 # Start (production)
@@ -245,6 +254,38 @@ docker compose down
 
 # Stop and remove volumes (destructive)
 docker compose down -v
+```
+
+## After a reboot
+
+On 2026-10-18 the VPS rebooted, a host package grabbed :80 first, Traefik
+exited and every site stayed down for ~6 hours unnoticed. Three things now
+cover that:
+
+- **Restart policies**: every infra service is `restart: always`, the app
+  stacks `unless-stopped`.
+- **`hashcode-stack.service`** (in `scripts/`): after boot it waits 30s, runs
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`, then
+  `scripts/post-boot-check.sh`, which checks Traefik and ports 80/443, every
+  container's state and health, and every public `Host(...)` from the Traefik
+  labels, and posts the result to Slack (`VPS_SLACK_ALERT_WEBHOOK`).
+- **Traefik healthcheck**: `traefik healthcheck --ping` against the
+  `websecure` entrypoint (prod file).
+
+Install the unit once (root):
+
+```bash
+sudo ln -sf /home/brx/hashcode-vps-infra/scripts/hashcode-stack.service /etc/systemd/system/hashcode-stack.service
+sudo systemctl daemon-reload && sudo systemctl enable hashcode-stack.service
+# Keep host web servers from ever taking :80/:443 at boot
+sudo systemctl mask apache2 nginx lighttpd caddy merecat
+```
+
+Run the check by hand at any time (`NO_SLACK=1` to only print):
+
+```bash
+CHECK_REASON="Manual check" scripts/post-boot-check.sh
+journalctl -u hashcode-stack -b     # what the boot run did
 ```
 
 ## Updating Services

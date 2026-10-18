@@ -84,6 +84,9 @@ Then fill in `.env` with real values and start the stack:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
+Then install the boot safety net (README → *After a reboot*): the
+`hashcode-stack.service` unit and the `systemctl mask` of host web servers.
+
 ---
 
 ## Step 5 — CI/CD takes over
@@ -93,8 +96,10 @@ Merge any PR to `main` — the workflow at `.github/workflows/deploy.yml` will:
 
 1. SSH into the VPS
 2. Pull latest code
-3. Write `.env` from GitHub Secrets
-4. Run `docker compose ... up -d --remove-orphans`
+3. Write `.env` from GitHub Secrets — including
+   `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml`, so a bare
+   `docker compose` on the VPS can never start the base file alone
+4. Run `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans`
 5. Run smoke tests against all public endpoints
 
 ---
