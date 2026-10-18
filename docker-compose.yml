@@ -70,24 +70,11 @@ services:
     networks:
       - internal
 
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
-    container_name: pgbouncer
-    restart: always
-    environment:
-      - POSTGRESQL_HOST=postgres
-      - POSTGRESQL_PORT=5432
-      - POSTGRESQL_USERNAME=${POSTGRES_USER}
-      - POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD}
-      - PGBOUNCER_DATABASE=${PGBOUNCER_DATABASE:-rabotka}
-      - PGBOUNCER_POOL_MODE=transaction
-      - PGBOUNCER_MAX_CLIENT_CONN=${PGBOUNCER_MAX_CLIENT_CONN:-200}
-      - PGBOUNCER_DEFAULT_POOL_SIZE=${PGBOUNCER_DEFAULT_POOL_SIZE:-20}
-      - PGBOUNCER_AUTH_TYPE=scram-sha-256
-    depends_on:
-      - postgres
-    networks:
-      - internal
+  # PgBouncer was removed on 2026-10-18. Its environment used Bitnami variable
+  # names on the edoburu image, so it never started (crash-looped on an empty
+  # pgbouncer.ini), and no app ever connected through it: they all use
+  # postgres:5432 directly. If pooling is needed again, add it back with the
+  # image's own variable names and point an app at it deliberately.
 
   # Reachable ONLY from the internal network. Not published, not routed.
   #
